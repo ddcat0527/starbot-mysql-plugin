@@ -4,7 +4,7 @@ from creart import create
 from graia.ariadne import Ariadne
 from graia.ariadne.event.message import FriendMessage, GroupMessage
 from graia.ariadne.message.chain import MessageChain
-from graia.ariadne.message.element import At, Image
+from graia.ariadne.message.element import At, Image, AtAll, Plain
 from graia.ariadne.message.parser.twilight import Twilight, FullMatch, UnionMatch, ElementMatch, ArgumentMatch, \
     ResultValue, ParamMatch, SpacePolicy
 from graia.ariadne.model import Friend, Group, Member, MemberPerm
@@ -827,8 +827,18 @@ async def _SetMessageGroup(app: Ariadne, sender: Group, member: Member, message:
         logger.info(f"群[{sender.name}]({sender.id}) 命令: {set_message[0]} 失败 原因：{result}")
         await app.send_message(sender, MessageChain(result))
     else:
+        msg = ""
+        for element in ret_msg.content:
+            if isinstance(element, Image):
+                msg += "{base64pic=" + base64.b64encode(await element.get_bytes()).decode('ascii') + "}"
+            if isinstance(element, At):
+                msg += "{at" + f"{element.target}" + "}"
+            if isinstance(element, AtAll):
+                msg += "{atall}"
+            if isinstance(element, Plain):
+                msg += element.text
         await obj_mysql.init_target(bot, uid, group)
-        obj_mysql.set_message_inner(message_type, ret_msg)
+        obj_mysql.set_message_inner(message_type, msg)
         await obj_mysql.save()
         uname, _ = obj_mysql.get_target_uname_and_roomid()
         logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {set_message[0]} 成功 {uname}({uid})")
@@ -894,8 +904,14 @@ async def _SetMessageFriend(app: Ariadne, sender: Friend, uid: MessageChain = Re
         logger.info(f"好友[{sender.nickname}]({sender.id}) 命令: {set_message[0]} 失败 原因：{result}")
         await app.send_message(sender, MessageChain(result))
     else:
+        msg = ""
+        for element in ret_msg.content:
+            if isinstance(element, Image):
+                msg += "{base64pic=" + base64.b64encode(await element.get_bytes()).decode('ascii') + "}"
+            if isinstance(element, Plain):
+                msg += element.text
         await obj_mysql.init_target(bot, uid, group)
-        obj_mysql.set_message_inner(message_type, ret_msg)
+        obj_mysql.set_message_inner(message_type, msg)
         await obj_mysql.save()
         uname, _ = obj_mysql.get_target_uname_and_roomid()
         logger.info(
