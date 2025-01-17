@@ -1,10 +1,8 @@
 from typing import List, Optional
-import json
 from pydantic import BaseModel
 from graia.ariadne import Ariadne
-from starbot.exception import DataSourceException
-from starbot.core.datasource import JsonDataSource, MySQLDataSource
-from starbot.utils import config as bot_config
+from starbot.core.datasource import MySQLDataSource
+from starbot.utils import config
 
 from .mysql_utils import ObjMysql
 
@@ -160,52 +158,20 @@ class Bot(BaseModel):
     ups: List[Up]
     """Bot 账号下运行的 UP 主列表"""
 
-
-def load_json(json_file="", json_str="") -> List[Bot]:
-    bots: List[Bot] = []
-    try:
-        if json_str is None:
-            with open(json_file, "r", encoding="utf-8") as file:
-                file = file.read()
-                json_str = json.loads(file)
-    except FileNotFoundError:
-        raise DataSourceException("JSON 文件不存在, 请检查文件路径是否正确")
-    except UnicodeDecodeError:
-        raise DataSourceException("JSON 文件编码不正确, 请将其转换为 UTF-8 格式编码后重试")
-    except Exception as ex:
-        raise DataSourceException(f"读取 JSON 文件异常 {ex}")
-
-    try:
-        json_obj = json.loads(json_str)
-    except Exception:
-        raise DataSourceException("提供的 JSON 字符串格式不正确")
-
-    for bot in json_obj:
-        if "qq" not in bot:
-            raise DataSourceException("提供的 JSON 字符串中未提供 Bot 的 QQ 号参数")
-        bots.append(Bot(**bot))
-
-    return bots
-
-
 mysql_datasource: Optional[MySQLDataSource] = None
 
 
-async def json_trans_to_mysql():
-    json_datasource = Ariadne.options["StarBotDataSource"]
-    if not isinstance(json_datasource, JsonDataSource):
-        return False, "需要 JSON 数据源加载starbot"
-    json_file = json_datasource._JsonDataSource__json_file
-    json_str = json_datasource._JsonDataSource__json_str
-    if json_file is None and json_str is None:
-        return False, "内存中 DataSource 对象未查询到 JSON 文件路径和 JSON 字符串"
-    bots: List[Bot] = load_json(json_file, json_str)
+async def datasource_trans_to_mysql():
+    datasource = Ariadne.options["StarBotDataSource"]
+    if isinstance(datasource, MySQLDataSource):
+        return False, "已经是MYSQL数据源，无需转储"
+    bots: List[Bot] = datasource.bots
 
-    username = bot_config.get("MYSQL_USERNAME")
-    password = bot_config.get("MYSQL_PASSWORD")
-    host = bot_config.get("MYSQL_HOST")
-    port = bot_config.get("MYSQL_PORT")
-    db = bot_config.get("MYSQL_DB")
+    username = config.get("MYSQL_USERNAME")
+    password = config.get("MYSQL_PASSWORD")
+    host = config.get("MYSQL_HOST")
+    port = config.get("MYSQL_PORT")
+    db = config.get("MYSQL_DB")
     global mysql_datasource
     if mysql_datasource is None:
         mysql_datasource = MySQLDataSource(username, password, host, port, db)

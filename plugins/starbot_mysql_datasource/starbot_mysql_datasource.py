@@ -18,9 +18,9 @@ import base64
 from starbot.utils import config
 from starbot.core.model import PushType
 
-from .mysql_utils import ObjMysql, check_not_mysql_datasource, check_not_json_datasource, create_auto_follow_task, \
-    draw_image_pic, draw_pic, check_at_object
-from .mysql_trans import json_trans_to_mysql
+from .mysql_utils import ObjMysql, check_not_mysql_datasource, check_mysql_datasource, create_auto_follow_task, \
+    draw_image_pic, draw_pic, check_at_object, get_message_help, select_uname_and_room_id
+from .mysql_trans import datasource_trans_to_mysql
 
 prefix = config.get("COMMAND_PREFIX")
 master_qq = config.get("MASTER_QQ")
@@ -31,14 +31,17 @@ inc = create(InterruptControl)
 add_describe = ["添加订阅", "watch"]
 delete_describe = ["删除订阅", "unwatch"]
 list_describe = ["查询订阅", "list"]
+reload_uid = ["重载订阅", "reloaduid"]
 add_logo = ["设置立绘", "setlogo"]
 clear_logo = ["清除立绘", "clearlogo"]
-check_describe_abnormal = ["检测异常订阅"]
-clear_describe_abnormal = ["清除异常订阅"]
+set_message = ["设置推送信息", "setmessage"]
+check_describe_abnormal = ["检测异常订阅", "checkabnormal"]
+clear_describe_abnormal = ["清除异常订阅", "clearabnormal"]
+trans_to_mysql = ["数据源转储", "datasourcetrans"]
 help_cmd = ["订阅帮助"]
 
 describe_cmd = {
-    "添加订阅": {
+    add_describe[0]: {
         "cmd": add_describe,
         "describe_group": [f"{prefix}[{' | '.join(add_describe)}] uid",
                            "可选参数：[-t | --type] [news | live | live_on | all] 订阅类型[动态，开播和下播，开播，全部推送(默认)]",
@@ -63,7 +66,7 @@ describe_cmd = {
                            f"示例: {prefix}{add_describe[0]} 123456 -g 456789",
                            f"示例: {prefix}{add_describe[0]} 123456 -g 456789 -t all -a no -r time"]
     },
-    "删除订阅": {
+    delete_describe[0]: {
         "cmd": delete_describe,
         "describe_group": [f"{prefix}[{' | '.join(delete_describe)}] uid",
                            "为防止被滥用，该命令需要群管理员及以上权限可用",
@@ -74,7 +77,7 @@ describe_cmd = {
                            "可选参数：[-g | --group] [group_num] 订阅所在群号",
                            f"示例: {prefix}{delete_describe[0]} 123456 -g 456789"],
     },
-    "查询订阅": {
+    list_describe[0]: {
         "cmd": list_describe,
         "describe_group": [f"{prefix}[{' | '.join(list_describe)}]",
                            "可选参数：[-t | --text] [true | false] 是否使用文字模式发送[是，否(默认)]",
@@ -91,54 +94,94 @@ describe_cmd = {
                            f"示例: {prefix}{list_describe[0]}",
                            f"示例: {prefix}{list_describe[0]} -t true"],
     },
-    "设置立绘": {
+    reload_uid[0]: {
+        "cmd": reload_uid,
+        "describe_group": [],
+        "describe_friend": [],
+        "describe_admin": [f"{prefix}[{' | '.join(reload_uid)}] uid",
+                           "从数据库重新载入订阅目标",
+                           f"示例: {prefix}{reload_uid[0]} uid"],
+    },
+    add_logo[0]: {
         "cmd": add_logo,
-        "describe_group": [f"{prefix}[{' | '.join(add_logo)}] [logo]",
+        "describe_group": [f"{prefix}[{' | '.join(add_logo)}] uid",
                            "设置直播报告立绘",
                            "注意：uid需要在该群被订阅才能成功",
                            "为防止被滥用，该命令需要群管理员及以上权限可用",
-                           f"示例: {prefix}{add_logo[0]}[图片]"],
-        "describe_friend": [f"{prefix}[{' | '.join(add_logo)}]",
+                           f"示例: {prefix}{add_logo[0]} uid"],
+        "describe_friend": [f"{prefix}[{' | '.join(add_logo)}] uid",
                             "设置直播报告立绘，发送命令后根据命令交互完成设置",
                             "注意：uid需要被订阅才能成功",
-                            f"示例: {prefix}{add_logo[0]}"],
-        "describe_admin": [f"{prefix}[{' | '.join(add_logo)}]",
+                            f"示例: {prefix}{add_logo[0]} uid"],
+        "describe_admin": [f"{prefix}[{' | '.join(add_logo)}] uid",
                            "可选参数：[-g | --group] [group_num] 订阅所在群号",
                            "设置直播报告立绘，发送命令后根据命令交互完成设置",
                            "注意：uid需要被订阅才能成功",
-                           f"示例: {prefix}{add_logo[0]} -g 456789"]
+                           f"示例: {prefix}{add_logo[0]} -g 456789 uid"]
     },
-    "清除立绘": {
+    clear_logo[0]: {
         "cmd": clear_logo,
-        "describe_group": [f"{prefix}[{' | '.join(clear_logo)}]",
+        "describe_group": [f"{prefix}[{' | '.join(clear_logo)}] uid",
                            "清除直播报告立绘",
                            "注意：uid需要在该群被订阅才能成功",
                            "为防止被滥用，该命令需要群管理员及以上权限可用",
-                           f"示例: {prefix}{clear_logo[0]}"],
-        "describe_friend": [f"{prefix}[{' | '.join(clear_logo)}]",
+                           f"示例: {prefix}{clear_logo[0]} uid"],
+        "describe_friend": [f"{prefix}[{' | '.join(clear_logo)}] uid",
                             "清除直播报告立绘",
                             "注意：uid需要被订阅才能成功",
-                            f"示例: {prefix}{clear_logo[0]}"],
-        "describe_admin": [f"{prefix}[{' | '.join(clear_logo)}]",
+                            f"示例: {prefix}{clear_logo[0]} uid"],
+        "describe_admin": [f"{prefix}[{' | '.join(clear_logo)}] uid",
                            "可选参数：[-g | --group] [group_num] 订阅所在群号",
                            "清除直播报告立绘",
                            "注意：uid需要被订阅才能成功",
-                           f"示例: {prefix}{clear_logo[0]} -g 456789"]
+                           f"示例: {prefix}{clear_logo[0]} -g 456789 uid"]
     },
-    "检测异常订阅": {
+    set_message[0]: {
+        "cmd": set_message,
+        "describe_group": [f"{prefix}[{' | '.join(set_message)}] uid",
+                           "必选参数：[-t | --type] [news | live_on | live_off]  类型[动态提醒，开播提醒，下播提醒]",
+                           "设置动态提醒，开播提醒和下播提醒",
+                           "注意：uid需要在该群被订阅才能成功",
+                           "为防止被滥用，该命令需要群管理员及以上权限可用",
+                           f"示例: {prefix}{set_message[0]} uid -t live_on"],
+        "describe_friend": [f"{prefix}[{' | '.join(set_message)}] uid",
+                            "必选参数：[-t | --type] [news | live_on | live_off]  类型[动态提醒，开播提醒，下播提醒]",
+                            "设置动态提醒，开播提醒和下播提醒",
+                            "注意：uid需要被订阅才能成功",
+                            f"示例: {prefix}{set_message[0]} uid -t live_on"],
+        "describe_admin": [f"{prefix}[{' | '.join(set_message)} uid]",
+                           "可选参数：[-g | --group] [group_num] 订阅所在群号",
+                           "必选参数：[-t | --type] [news | live_on | live_off]  类型[动态提醒，开播提醒，下播提醒]",
+                           "设置动态提醒，开播提醒和下播提醒",
+                           "注意：uid需要被订阅才能成功",
+                           f"示例: {prefix}{set_message[0]} -g 456789 uid -t live_on"]
+    },
+    check_describe_abnormal[0]: {
         "cmd": check_describe_abnormal,
         "describe_group": [],
         "describe_friend": [],
         "describe_admin": [f"{prefix}[{' | '.join(check_describe_abnormal)}]",
                            "查询已经失效的订阅及其所在群聊",
-                           "注意：存在因为qqnt问题导致查询信息错误，请务必手动确认结果"]
+                           "功能未验证，请谨慎使用",
+                           "注意：存在因为qqnt问题导致查询信息错误，请务必手动确认结果",
+                           f"示例: {prefix}{check_describe_abnormal[0]}"]
     },
-    "清除异常订阅": {
+    clear_describe_abnormal[0]: {
         "cmd": clear_describe_abnormal,
         "describe_group": [],
         "describe_friend": [],
         "describe_admin": [f"{prefix}[{' | '.join(clear_describe_abnormal)}]",
-                           "清除所有已经失效的订阅"]
+                           "清除所有已经失效的订阅",
+                           "功能未验证，请谨慎使用",
+                           f"示例: {prefix}{clear_describe_abnormal[0]}"]
+    },
+    trans_to_mysql[0]: {
+        "cmd": trans_to_mysql,
+        "describe_group": [],
+        "describe_friend": [],
+        "describe_admin": [f"{prefix}[{' | '.join(trans_to_mysql)}]",
+                           "该命令在json数据源下使用，用处是将内存中的订阅信息插入mysql数据源中",
+                           f"示例: {prefix}{trans_to_mysql[0]}"]
     }
 }
 
@@ -366,21 +409,21 @@ async def _DelListenFriend(app: Ariadne, sender: Friend, uid: MessageChain = Res
         inline_dispatchers=[Twilight(
             ElementMatch(At, optional=True),
             FullMatch(prefix),
-            UnionMatch("数据源转储")
+            UnionMatch(*trans_to_mysql)
         )],
     )
 )
-async def _JsondatasourceTransToMysql(app: Ariadne, sender: Friend):
-    if check_not_json_datasource():
+async def _TransToMysql(app: Ariadne, sender: Friend):
+    if check_mysql_datasource():
         return
     if master_qq == "" or master_qq != sender.id:
         # 功能需要配置MASTER_QQ
         return
-    logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : 数据源转储")
-    result, message = await json_trans_to_mysql()
+    logger.info(f"主人[{sender.nickname}]({sender.id}) 触发命令 : {trans_to_mysql[0]}")
+    result, message = await datasource_trans_to_mysql()
     if not result:
-        await app.send_message(sender, MessageChain(draw_pic(f"数据源转储操作失败，原因：{message}")))
-    await app.send_message(sender, MessageChain(draw_pic(f"数据源转储操作成功", width=800)))
+        await app.send_message(sender, MessageChain(draw_pic(f"{trans_to_mysql[0]} 失败，原因：{message}")))
+    await app.send_message(sender, MessageChain(draw_pic(f"{trans_to_mysql[0]} 成功", width=800)))
 
 
 @channel.use(
@@ -455,6 +498,41 @@ async def _GetUpListAll(app: Ariadne, sender: Friend, text: Optional[str] = Resu
     else:
         res = draw_pic(result)
     await app.send_message(sender, MessageChain(res))
+
+
+@channel.use(
+    ListenerSchema(
+        listening_events=[FriendMessage],
+        inline_dispatchers=[Twilight(
+            ElementMatch(At, optional=True),
+            FullMatch(prefix),
+            UnionMatch(*reload_uid).space(SpacePolicy.FORCE),
+            "uid" @ ParamMatch(),
+        )],
+    )
+)
+async def _ReloadUid(app: Ariadne, sender: Friend, uid: MessageChain = ResultValue()):
+    if check_not_mysql_datasource():
+        return
+    uid = uid.display
+    logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {reload_uid[0]} {uid = }")
+    if uid == "" or not uid.isdigit():
+        logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {delete_describe[0]} uid输入不合法({uid})")
+        await app.send_message(sender, MessageChain(draw_pic(f"uid输入不合法({uid})，操作失败", width=800)))
+        return
+    uid = int(uid)
+    if master_qq == "" or master_qq != sender.id:
+        return
+    obj_mysql = ObjMysql()
+    result = await obj_mysql.check_uid_exist_with_all(uid)
+    if not result:
+        logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {delete_describe[0]} uid未被订阅({uid = })")
+        await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
+        return
+    await obj_mysql.reload(uid)
+    uname, _ = await select_uname_and_room_id(uid)
+    logger.info(f"群[{sender.nickname}]({sender.id}) 触发命令 : {add_logo[0]} 成功 {uname}({uid})")
+    await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){add_logo[0]}成功", width=800)))
 
 
 @channel.use(
@@ -690,6 +768,140 @@ async def _ClearLogoFriend(app: Ariadne, sender: Friend, uid: MessageChain = Res
     uname, _ = obj_mysql.get_target_uname_and_roomid()
     logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {clear_logo[0]} 成功 {msg_prefix}[{uname}]({uid})")
     await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){clear_logo[0]}成功", width=800)))
+
+
+@channel.use(
+    ListenerSchema(
+        listening_events=[GroupMessage],
+        inline_dispatchers=[Twilight(
+            ElementMatch(At, optional=True),
+            FullMatch(prefix),
+            UnionMatch(*set_message).space(SpacePolicy.FORCE),
+            "uid" @ ParamMatch(),
+            "message_type" @ ArgumentMatch("-t", "--type", type=str, choices=["news", "live_on", "live_off"]),
+        )],
+    )
+)
+async def _SetMessageGroup(app: Ariadne, sender: Group, member: Member, message: MessageChain,
+                           uid: MessageChain = ResultValue(), message_type: Optional[str] = ResultValue()):
+    if check_not_mysql_datasource():
+        return
+    if check_at_object(app.account, message) is False:
+        return
+    uid = uid.display
+    if uid == "" or not uid.isdigit():
+        logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {set_message[0]} uid输入不合法({uid})")
+        await app.send_message(sender, MessageChain(draw_pic(f"uid输入不合法({uid})，操作失败", width=800)))
+        return
+    uid = int(uid)
+    group = sender.id
+    bot = app.account
+    logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {set_message[0]} {uid = } {group = } {message_type = })")
+
+    if master_qq == "" or f"{member.id}" != f"{master_qq}":
+        person = await app.get_member(group, member.id)
+        if person.permission < MemberPerm.Administrator:
+            logger.info(
+                f"群[{sender.name}]({sender.id}) 触发命令 : {set_message[0]} 权限不足({member.id = }, {person.permission = })")
+            await app.send_message(sender,
+                                   MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
+            return
+    obj_mysql = ObjMysql()
+    result = await obj_mysql.check_uid_exist(uid, group)
+    if not result:
+        logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {set_message[0]} uid未被订阅({uid = })")
+        await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
+        return
+    timeout_s = 60
+    await app.send_message(sender, MessageChain(get_message_help(message_type) + f"\n请在{timeout_s}秒内发送内容:"))
+
+    @Waiter.create_using_function([GroupMessage])
+    async def words_waiter(s: Group, m: Member, msg: MessageChain):
+        if sender.id == s.id and member.id == m.id:
+            return msg
+
+    try:
+        ret_msg = await inc.wait(words_waiter, timeout=timeout_s)  # 强烈建议设置超时时间否则将可能会永远等待
+    except asyncio.TimeoutError:
+        result = "超时自动取消"
+        logger.info(f"群[{sender.name}]({sender.id}) 命令: {set_message[0]} 失败 原因：{result}")
+        await app.send_message(sender, MessageChain(result))
+    else:
+        await obj_mysql.init_target(bot, uid, group)
+        obj_mysql.set_message_inner(message_type, ret_msg)
+        await obj_mysql.save()
+        uname, _ = obj_mysql.get_target_uname_and_roomid()
+        logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {set_message[0]} 成功 {uname}({uid})")
+        await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){set_message[0]}成功", width=800)))
+
+
+@channel.use(
+    ListenerSchema(
+        listening_events=[FriendMessage],
+        inline_dispatchers=[Twilight(
+            ElementMatch(At, optional=True),
+            FullMatch(prefix),
+            UnionMatch(*set_message).space(SpacePolicy.FORCE),
+            "uid" @ ParamMatch(),
+            "message_type" @ ArgumentMatch("-t", "--type", type=str, choices=["news", "live_on", "live_off"]),
+            "group" @ ArgumentMatch("-g", "--group", type=int, default=0, optional=True)
+        )],
+    )
+)
+async def _SetMessageFriend(app: Ariadne, sender: Friend, uid: MessageChain = ResultValue(),
+                            message_type: Optional[str] = ResultValue(), group: Optional[int] = ResultValue()):
+    if check_not_mysql_datasource():
+        return
+    uid = uid.display
+    if uid == "" or not uid.isdigit():
+        logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {set_message[0]} uid输入不合法({uid})")
+        await app.send_message(sender, MessageChain(draw_pic(f"uid输入不合法({uid})，操作失败", width=800)))
+        return
+    uid = int(uid)
+    bot = app.account
+    logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {set_message[0]} ({uid = }, {group = })")
+
+    if group != 0:
+        if master_qq == "" or master_qq != sender.id:
+            # 功能需要配置MASTER_QQ
+            return
+        source = group
+        source_type = PushType.Group
+        msg_prefix = f"群聊{group} "
+    else:
+        source = sender.id
+        source_type = PushType.Friend
+        msg_prefix = ""
+
+    obj_mysql = ObjMysql()
+    result = await obj_mysql.check_uid_exist(uid, source, source_type)
+    if not result:
+        logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {set_message[0]} uid未被订阅({uid = })")
+        await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
+        return
+    timeout_s = 60
+    await app.send_message(sender, MessageChain(get_message_help(message_type) + f"\n请在{timeout_s}秒内发送内容:"))
+
+    @Waiter.create_using_function([FriendMessage])
+    async def words_waiter(s: Friend, msg: MessageChain):
+        if sender.id == s.id:
+            return msg
+
+    try:
+        ret_msg = await inc.wait(words_waiter, timeout=60)  # 强烈建议设置超时时间否则将可能会永远等待
+    except asyncio.TimeoutError:
+        result = "超时自动取消"
+        logger.info(f"好友[{sender.nickname}]({sender.id}) 命令: {set_message[0]} 失败 原因：{result}")
+        await app.send_message(sender, MessageChain(result))
+    else:
+        await obj_mysql.init_target(bot, uid, group)
+        obj_mysql.set_message_inner(message_type, ret_msg)
+        await obj_mysql.save()
+        uname, _ = obj_mysql.get_target_uname_and_roomid()
+        logger.info(
+            f"好友[{sender.nickname}]({sender.id}) 触发命令 : {set_message[0]} 成功 {msg_prefix}[{uname}]({uid})")
+        await app.send_message(sender,
+                               MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){set_message[0]}成功", width=800)))
 
 
 @channel.use(

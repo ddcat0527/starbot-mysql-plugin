@@ -8,7 +8,7 @@ import base64
 from graia.ariadne import Ariadne
 from graia.ariadne.message.chain import MessageChain
 from graia.ariadne.message.element import Image, At, AtAll, Quote
-from starbot.core.datasource import MySQLDataSource, JsonDataSource
+from starbot.core.datasource import MySQLDataSource
 from starbot.core.user import User, RelationType
 from starbot.core.room import Up
 from starbot.core.model import PushType
@@ -36,15 +36,37 @@ def check_at_object(account: int, message: MessageChain):
 def check_not_mysql_datasource():
     if isinstance(Ariadne.options["StarBotDataSource"], MySQLDataSource):
         return False
-    logger.info("需要mysql数据源")
     return True
 
 
-def check_not_json_datasource():
-    if isinstance(Ariadne.options["StarBotDataSource"], JsonDataSource):
-        return False
-    logger.info("需要json数据源")
-    return True
+def check_mysql_datasource():
+    if isinstance(Ariadne.options["StarBotDataSource"], MySQLDataSource):
+        return True
+    return False
+
+
+async def select_uname_and_room_id(uid):
+    user_info_url = f"https://api.live.bilibili.com/live_user/v1/Master/info?uid={uid}"
+    user_info = await request("GET", user_info_url)
+    uname = user_info["info"]["uname"]
+    room_id = user_info["room_id"]
+    if user_info["room_id"] == 0:
+        logger.warning(f"UP主{uname}(UID:{uid})还未开通直播间")
+    return uname, room_id
+
+
+def get_message_help(message_type: str):
+    msg = ""
+    if message_type == "news":
+        msg = """专用占位符：{uname} 主播昵称，{action} 动态操作类型（发表了新动态，转发了新动态，投稿了新视频...），{url} 动态链接（若为发表视频、专栏等则为视频、专栏等对应的链接），{picture} 动态图片。
+通用占位符：{next} 消息分条，{atall} @全体成员，{at114514} @指定QQ号，{urlpic=链接} 网络图片，{pathpic=路径} 本地图片，{base64pic=base64字符串} base64图片。"""
+    if message_type == "live_on":
+        msg = """专用占位符：{uname} 主播昵称，{title} 直播间标题，{url} 直播间链接，{cover} 直播间封面图。
+通用占位符：{next} 消息分条，{atall} @全体成员，{at114514} @指定QQ号，{urlpic=链接} 网络图片，{pathpic=路径} 本地图片，{base64pic=base64字符串} base64图片。"""
+    if message_type == "live_off":
+        msg = """专用占位符：{uname} 主播昵称。
+通用占位符：{next} 消息分条，{atall} @全体成员，{at114514} @指定QQ号，{urlpic=链接} 网络图片，{pathpic=路径} 本地图片，{base64pic=base64字符串} base64图片。"""
+    return msg
 
 
 def create_auto_follow_task():
@@ -115,7 +137,7 @@ def draw_pic(messages: Union[str, List], title: Optional[str] = None, sub_title:
     # 底部版权信息，请务必保留此处
     pic.draw_text_right(25, "Designed By StarBot", Color.GRAY)
     pic.draw_text_right(25, "https://github.com/Starlwr/StarBot", Color.LINK)
-    pic.draw_text_right(25, "Created by starbot-plugins", Color.GREEN)
+    pic.draw_text_right(25, f"Created by {__package__}", Color.GREEN)
     pic.crop_and_paste_bottom()
     return Image(base64=pic.base64())
 
@@ -148,7 +170,7 @@ def draw_image_pic(image_base64, title: Optional[str] = None, width=600, height=
     pic.draw_text("")
     pic.draw_text_right(50, "Designed By StarBot", Color.GRAY)
     pic.draw_text_right(50, "https://github.com/Starlwr/StarBot", Color.LINK)
-    pic.draw_text_right(25, "Created by starbot-plugins", Color.GREEN)
+    pic.draw_text_right(25, f"Created by {__package__}", Color.GREEN)
     pic.crop_and_paste_bottom()
     return Image(base64=pic.base64())
 
@@ -225,7 +247,10 @@ class DynamicMysql:
         self.message = self._message_default
 
     def set_message(self, message: str = ""):
-        self.message = message
+        if message:
+            self.message = message
+        else:
+            self.message = self._message_default
 
     def mysql_insert_query(self) -> str:
         return f"INSERT INTO `{self.mysql_name}` (`id`, `uid`, `enabled`, `message`) VALUES ('{self.id}', {self.uid}, {int(self.enabled)}, '{self.message}')"
@@ -276,7 +301,10 @@ class LiveOffMysql():
         self.enabled = False
 
     def set_message(self, message: str = ""):
-        self.message = message
+        if message:
+            self.message = message
+        else:
+            self.message = self._message_default
 
     def mysql_insert_query(self) -> str:
         return f"INSERT INTO `{self.mysql_name}` (`id`, `uid`, `enabled`, `message`) VALUES ('{self.id}', {self.uid}, {int(self.enabled)}, '{self.message}')"
@@ -335,7 +363,10 @@ class LiveOnMysql:
         self.message = self._message_default
 
     def set_message(self, message: str = ""):
-        self.message = message
+        if message:
+            self.message = message
+        else:
+            self.message = self._message_default
 
     def mysql_insert_query(self) -> str:
         return f"INSERT INTO `{self.mysql_name}` (`id`, `uid`, `enabled`, `message`) VALUES ('{self.id}', {self.uid}, {int(self.enabled)}, '{self.message}')"
@@ -600,12 +631,7 @@ class TargetMysql:
         self.uid = uid
 
     async def set_uname_and_room_id(self):
-        user_info_url = f"https://api.live.bilibili.com/live_user/v1/Master/info?uid={self.uid}"
-        user_info = await request("GET", user_info_url)
-        self.uname = user_info["info"]["uname"]
-        self.room_id = user_info["room_id"]
-        if user_info["room_id"] == 0:
-            logger.warning(f"UP主{self.uname}(UID:{self.uid})还未开通直播间")
+        self.uname, self.room_id = await select_uname_and_room_id(self.uid)
 
     def get_uname_and_room_id(self):
         return self.uname, self.room_id
@@ -755,6 +781,18 @@ class ObjMysql:
 
     def get_target_uname_and_roomid(self):
         return self.target.get_uname_and_room_id()
+
+    def set_message_inner(self, message_type: str, message: str = ""):
+        if message_type == "news":
+            self.dynamic.set_message(message)
+            return
+        if message_type == "live_on":
+            self.live_on.set_message(message)
+            return
+        if message_type == "live_off":
+            self.live_off.set_message(message)
+            return
+        return
 
     # 对应enabled字段
     def set_report_type(self, type: str):
@@ -909,6 +947,13 @@ class ObjMysql:
     async def check_uid_exist(self, uid: int, num: int, type: PushType = PushType.Group):
         target = TargetMysql(uid, num, type)
         target_mysql = await self.query(target.mysql_get_by_uid_and_num_query())
+        if len(target_mysql) == 0:
+            return False
+        return True
+
+    async def check_uid_exist_with_all(self, uid: int):
+        target = TargetMysql(uid, 0, PushType.Group)
+        target_mysql = await self.query(target.mysql_get_by_uid_query())
         if len(target_mysql) == 0:
             return False
         return True
