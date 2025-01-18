@@ -11,8 +11,9 @@ starbot自定义命令包，包含如下功能
 #### 更新日志
 
 2025年1月17日：
-1、mysql数据源将text替换为longtext,原因是text不足以容纳base64字符串长度
-2、完善了setmessage命令的功能，现在他能正确识别图片和at元素并替换成相应占位符了
+
+1. mysql数据源将text替换为longtext,原因是text不足以容纳base64字符串长度
+2. 完善了setmessage命令的功能，现在他能正确识别图片和at元素并替换成相应占位符了
 
 #### 软件架构
 通过plugins目录下的__init__.py使用require导入内部所有插件包
