@@ -45,13 +45,16 @@ mysql默认数据库为starbot，内部表结构自行执行starbot.sql生成
 以下命令自行增加config配置的前缀
 帮助： 订阅帮助
 主人命令示例：
-![8c9023c182772defb345f6106e0952bd](https://github.com/user-attachments/assets/13b6b60c-3825-4d16-9b46-07798d497dd1)
+![9863cae698b9182e86aef0aab0f90be4](https://github.com/user-attachments/assets/9a326c3b-273d-4209-b3db-8a2a7b554b7f)
+
 
 群聊命令示例：
-![da6d61b11213af40825242d800633566_720](https://github.com/user-attachments/assets/941ff9c0-3ced-4248-8356-24f4f0cb0a49)
+![ad6ab2d42ad373e6b665de9fedf9b359_720](https://github.com/user-attachments/assets/3dd9b774-b3be-49b8-916b-bd482762078b)
+
 
 私聊命令示例：
-![d2494b048a0b7409f8ec5516748e006a_720](https://github.com/user-attachments/assets/53dd0334-0acc-4f5f-a728-e6d86aa07144)
+![5b9fecf0c7bb96fe39dc507182d2fbfb](https://github.com/user-attachments/assets/e2cf7b53-7e55-42bf-bf69-20c599bdd4cf)
+
 
 加好友自动同意并发送指引：
 ![baf125ee1fb7c7ceb5a03e8d8dd6b087](https://github.com/user-attachments/assets/429d9850-382b-4f7c-8a51-8ffde0dbbe26)
