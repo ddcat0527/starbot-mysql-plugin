@@ -20,6 +20,7 @@ from starbot.painter.PicGenerator import PicGenerator, Color
 
 from loguru import logger
 
+_version = "v1.0.0"
 
 def check_at_object(account: int, message: MessageChain):
     for element in message.content:
@@ -137,12 +138,12 @@ def draw_pic(messages: Union[str, List], title: Optional[str] = None, sub_title:
     # 底部版权信息，请务必保留此处
     pic.draw_text_right(25, "Designed By StarBot", Color.GRAY)
     pic.draw_text_right(25, "https://github.com/Starlwr/StarBot", Color.LINK)
-    pic.draw_text_right(25, f"Created by {__package__}", Color.GREEN)
+    pic.draw_text_right(25, f"{__package__}.{_version}", Color.GREEN)
     pic.crop_and_paste_bottom()
     return Image(base64=pic.base64())
 
 
-def draw_image_pic(image_base64, title: Optional[str] = None, width=600, height=100000):
+def draw_image_pic(image_base64, title: Optional[str] = None, width=800, height=100000):
     if image_base64 is None or len(image_base64) == 0:
         return None
     top_blank = 75
@@ -170,7 +171,7 @@ def draw_image_pic(image_base64, title: Optional[str] = None, width=600, height=
     pic.draw_text("")
     pic.draw_text_right(50, "Designed By StarBot", Color.GRAY)
     pic.draw_text_right(50, "https://github.com/Starlwr/StarBot", Color.LINK)
-    pic.draw_text_right(25, f"Created by {__package__}", Color.GREEN)
+    pic.draw_text_right(25, f"{__package__}.{_version}", Color.GREEN)
     pic.crop_and_paste_bottom()
     return Image(base64=pic.base64())
 

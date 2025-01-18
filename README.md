@@ -8,12 +8,18 @@ starbot自定义命令包，包含如下功能
 3. 好友申请自动通过（需要配置MASTER_QQ）
 4. mysql数据源下的机器人的动态订阅功能和当前内存数据源到mysql的转储能力
 
+当前版本 v1.0.0
+
 #### 更新日志
 
 2025年1月17日：
 
 1. mysql数据源将text替换为longtext,原因是text不足以容纳base64字符串长度
 2. 完善了setmessage命令的功能，现在他能正确识别图片和at元素并替换成相应占位符了
+
+2025年1月19日：
+1. 设置版本号以方便进行版本更新
+2. 统一使用命令交互进行设置立绘，并同步了setlogo的相关帮助
 
 #### 软件架构
 通过plugins目录下的__init__.py使用require导入内部所有插件包
@@ -58,3 +64,14 @@ starbot项目地址 https://github.com/Starlwr/StarBot
 命令参考ddbot https://github.com/cnxysoft/DDBOT-WSa/
 
 增加插件重载功能的魔改版starbot https://github.com/HanamiSeishin/StarBot
+
+
+#### 其他说明
+
+作者作为曾经ddbot的使用者编写该starbot插件，目的是增强starbot功能，因此该仓库下的所有插件均可在starbot原仓库下使用
+
+该插件的部署需要一定代码基础和运维技巧的支撑，若没有能力，请使用官方文档推荐的json数据源进行部署
+
+插件仅在linux平台进行了测试，理论无平台相关性，但不确保不出问题
+
+插件相关问题可以加入starbot官方群聊【推送姬の通知群（799915082）】，请注意提问技巧，部署相关问题请靠自己能力解决

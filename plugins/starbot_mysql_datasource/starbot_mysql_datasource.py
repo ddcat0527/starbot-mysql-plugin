@@ -105,7 +105,7 @@ describe_cmd = {
     add_logo[0]: {
         "cmd": add_logo,
         "describe_group": [f"{prefix}[{' | '.join(add_logo)}] uid",
-                           "设置直播报告立绘",
+                           "设置直播报告立绘，发送命令后根据命令交互完成设置",
                            "注意：uid需要在该群被订阅才能成功",
                            "为防止被滥用，该命令需要群管理员及以上权限可用",
                            f"示例: {prefix}{add_logo[0]} uid"],
@@ -542,21 +542,15 @@ async def _ReloadUid(app: Ariadne, sender: Friend, uid: MessageChain = ResultVal
             ElementMatch(At, optional=True),
             FullMatch(prefix),
             UnionMatch(*add_logo).space(SpacePolicy.FORCE),
-            "uid" @ ParamMatch(),
-            "logo" @ ElementMatch(Image)
+            "uid" @ ParamMatch()
         )],
     )
 )
 async def _SetLogoGroup(app: Ariadne, sender: Group, member: Member, message: MessageChain,
-                        uid: MessageChain = ResultValue(),
-                        logo: Optional[Image] = ResultValue()):
+                        uid: MessageChain = ResultValue()):
     if check_not_mysql_datasource():
         return
     if check_at_object(app.account, message) is False:
-        return
-    if logo is None:
-        logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {add_logo[0]} logo不存在")
-        await app.send_message(sender, MessageChain(draw_pic(f"logo不存在，操作失败", width=800)))
         return
     uid = uid.display
     if uid == "" or not uid.isdigit():
@@ -582,14 +576,40 @@ async def _SetLogoGroup(app: Ariadne, sender: Group, member: Member, message: Me
         logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {add_logo[0]} uid未被订阅({uid = })")
         await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
         return
-    await obj_mysql.init_target(bot, uid, group)
-    logo_base64 = base64.b64encode(await logo.get_bytes()).decode('ascii')
-    obj_mysql.set_report_logo(logo_base64)
-    await obj_mysql.save()
-    uname, _ = obj_mysql.get_target_uname_and_roomid()
-    logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {add_logo[0]} 成功 {uname}({uid})")
-    await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){add_logo[0]}成功", width=800)))
-    await app.send_message(sender, MessageChain(draw_image_pic(logo_base64, "直播报告立绘")))
+    time_out = 60
+    await app.send_message(sender, MessageChain(f"请在{time_out}秒内发送立绘图片"))
+
+    @Waiter.create_using_function([GroupMessage])
+    async def words_waiter(s: Group, m: Member, msg: MessageChain):
+        if sender.id == s.id and member.id == m.id:
+            return msg
+
+    try:
+        ret_msg = await inc.wait(words_waiter, timeout=time_out)  # 强烈建议设置超时时间否则将可能会永远等待
+    except asyncio.TimeoutError:
+        result = "超时自动取消"
+        logger.info(f"好友[{sender.name}]({sender.id}) 命令: {add_logo[0]} 失败 原因：{result}")
+        await app.send_message(sender, MessageChain(result))
+    else:
+        image = None
+        image_count = 0
+        for element in ret_msg.content:
+            if isinstance(element, Image):
+                image = element
+                image_count += 1
+        if image is None or image_count > 1:
+            result = "操作失败，请确认发送的图片数量为1"
+            logger.info(f"好友[{sender.name}]({sender.id}) 命令: {add_logo[0]} 失败 原因：{result}")
+            await app.send_message(sender, MessageChain(result))
+            return
+        await obj_mysql.init_target(bot, uid, group)
+        logo_base64 = base64.b64encode(await image.get_bytes()).decode('ascii')
+        obj_mysql.set_report_logo(logo_base64)
+        await obj_mysql.save()
+        uname, _ = obj_mysql.get_target_uname_and_roomid()
+        logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {add_logo[0]} 成功 {uname}({uid})")
+        await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){add_logo[0]}成功", width=800)))
+        await app.send_message(sender, MessageChain(draw_image_pic(logo_base64, "直播报告立绘")))
 
 
 @channel.use(
@@ -635,8 +655,8 @@ async def _SetLogoFriend(app: Ariadne, sender: Friend, uid: MessageChain = Resul
         logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {add_logo[0]} uid未被订阅({uid = })")
         await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
         return
-
-    await app.send_message(sender, MessageChain("请发送立绘图片"))
+    time_out = 60
+    await app.send_message(sender, MessageChain(f"请在{time_out}秒内发送立绘图片"))
 
     @Waiter.create_using_function([FriendMessage])
     async def words_waiter(s: Friend, msg: MessageChain):
@@ -644,7 +664,7 @@ async def _SetLogoFriend(app: Ariadne, sender: Friend, uid: MessageChain = Resul
             return msg
 
     try:
-        ret_msg = await inc.wait(words_waiter, timeout=60)  # 强烈建议设置超时时间否则将可能会永远等待
+        ret_msg = await inc.wait(words_waiter, timeout=time_out)  # 强烈建议设置超时时间否则将可能会永远等待
     except asyncio.TimeoutError:
         result = "超时自动取消"
         logger.info(f"好友[{sender.nickname}]({sender.id}) 命令: {add_logo[0]} 失败 原因：{result}")
@@ -657,7 +677,7 @@ async def _SetLogoFriend(app: Ariadne, sender: Friend, uid: MessageChain = Resul
                 image = element
                 image_count += 1
         if image is None or image_count > 1:
-            result = "操作失败，收到的不是一张图片"
+            result = "操作失败，请确认发送的图片数量为1"
             logger.info(f"好友[{sender.nickname}]({sender.id}) 命令: {add_logo[0]} 失败 原因：{result}")
             await app.send_message(sender, MessageChain(result))
             return
