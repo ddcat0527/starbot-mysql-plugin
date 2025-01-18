@@ -43,7 +43,10 @@ starbot自定义命令包，包含如下功能
 mysql默认数据库为starbot，内部表结构自行执行starbot.sql生成
 
 以下命令自行增加config配置的前缀
+
 帮助： 订阅帮助
+
+
 主人命令示例：
 ![9863cae698b9182e86aef0aab0f90be4](https://github.com/user-attachments/assets/9a326c3b-273d-4209-b3db-8a2a7b554b7f)
 
