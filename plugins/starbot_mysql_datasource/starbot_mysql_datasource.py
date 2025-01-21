@@ -180,7 +180,7 @@ describe_cmd = {
         "describe_group": [],
         "describe_friend": [],
         "describe_admin": [f"{prefix}[{' | '.join(trans_to_mysql)}]",
-                           "该命令在json数据源下使用，用处是将内存中的订阅信息插入mysql数据源中",
+                           "该命令可在其他数据源下使用，用处是将内存中的订阅信息插入mysql数据库中",
                            f"示例: {prefix}{trans_to_mysql[0]}"]
     }
 }
@@ -449,14 +449,15 @@ async def _GetUpList(app: Ariadne, sender: Group, message: MessageChain, text: O
     logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {list_describe[0]}, {text = }")
     group = sender.id
     obj_mysql = ObjMysql()
-    result = obj_mysql.get_ups_by_target_with_pic_struct(group, PushType.Group)
+    width = 1200
+    result = obj_mysql.get_ups_by_target_with_pic_struct(group, PushType.Group, width=width)
     if not result:
         result = ["未查询到订阅"]
     logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {list_describe[0]} 成功 \n{result}")
     if text_mode:
         res = "\n".join(result)
     else:
-        res = draw_pic(result)
+        res = draw_pic(result, width=width)
     await app.send_message(sender, MessageChain(res))
 
 
@@ -480,10 +481,11 @@ async def _GetUpListAll(app: Ariadne, sender: Friend, text: Optional[str] = Resu
         text_mode = True
     logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {list_describe[0]}, {text = }")
     obj_mysql = ObjMysql()
+    width = 1200
     if master_qq == "" or master_qq != sender.id:
-        result = obj_mysql.get_ups_by_target_with_pic_struct(sender.id, PushType.Friend)
+        result = obj_mysql.get_ups_by_target_with_pic_struct(sender.id, PushType.Friend, width=width)
     else:
-        result = obj_mysql.get_up_list_with_pic_struct()
+        result = obj_mysql.get_up_list_with_pic_struct(width=width)
         res_temp = []
         if text_mode:
             for result_inner in result:
@@ -496,7 +498,7 @@ async def _GetUpListAll(app: Ariadne, sender: Friend, text: Optional[str] = Resu
     if text_mode:
         res = "\n".join(result)
     else:
-        res = draw_pic(result)
+        res = draw_pic(result, width=width)
     await app.send_message(sender, MessageChain(res))
 
 
@@ -832,8 +834,8 @@ async def _SetMessageGroup(app: Ariadne, sender: Group, member: Member, message:
         logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {set_message[0]} uid未被订阅({uid = })")
         await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
         return
-    timeout_s = 60
-    await app.send_message(sender, MessageChain(get_message_help(message_type) + f"\n请在{timeout_s}秒内发送内容:"))
+    timeout_s = 600
+    await app.send_message(sender, MessageChain(get_message_help(message_type) + f"\nat元素和图片能够被正确识别\n请在{timeout_s}秒内发送内容:"))
 
     @Waiter.create_using_function([GroupMessage])
     async def words_waiter(s: Group, m: Member, msg: MessageChain):
@@ -909,8 +911,8 @@ async def _SetMessageFriend(app: Ariadne, sender: Friend, uid: MessageChain = Re
         logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {set_message[0]} uid未被订阅({uid = })")
         await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
         return
-    timeout_s = 60
-    await app.send_message(sender, MessageChain(get_message_help(message_type) + f"\n请在{timeout_s}秒内发送内容:"))
+    timeout_s = 600
+    await app.send_message(sender, MessageChain(get_message_help(message_type) + f"\n图片能够被正确识别\n请在{timeout_s}秒内发送内容:"))
 
     @Waiter.create_using_function([FriendMessage])
     async def words_waiter(s: Friend, msg: MessageChain):

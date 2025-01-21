@@ -20,7 +20,7 @@ from starbot.painter.PicGenerator import PicGenerator, Color
 
 from loguru import logger
 
-_version = "v1.0.0"
+_version = "v1.0.1"
 
 def check_at_object(account: int, message: MessageChain):
     for element in message.content:
@@ -60,13 +60,13 @@ def get_message_help(message_type: str):
     msg = ""
     if message_type == "news":
         msg = """专用占位符：{uname} 主播昵称，{action} 动态操作类型（发表了新动态，转发了新动态，投稿了新视频...），{url} 动态链接（若为发表视频、专栏等则为视频、专栏等对应的链接），{picture} 动态图片。
-通用占位符：{next} 消息分条，{atall} @全体成员，{at114514} @指定QQ号，{urlpic=链接} 网络图片，{pathpic=路径} 本地图片，{base64pic=base64字符串} base64图片。"""
+通用占位符：{next} 消息分条，{atall} @全体成员，{at114514} @指定QQ号，{urlpic=链接} 网络图片。"""
     if message_type == "live_on":
         msg = """专用占位符：{uname} 主播昵称，{title} 直播间标题，{url} 直播间链接，{cover} 直播间封面图。
-通用占位符：{next} 消息分条，{atall} @全体成员，{at114514} @指定QQ号，{urlpic=链接} 网络图片，{pathpic=路径} 本地图片，{base64pic=base64字符串} base64图片。"""
+通用占位符：{next} 消息分条，{atall} @全体成员，{at114514} @指定QQ号，{urlpic=链接} 网络图片。"""
     if message_type == "live_off":
         msg = """专用占位符：{uname} 主播昵称。
-通用占位符：{next} 消息分条，{atall} @全体成员，{at114514} @指定QQ号，{urlpic=链接} 网络图片，{pathpic=路径} 本地图片，{base64pic=base64字符串} base64图片。"""
+通用占位符：{next} 消息分条，{atall} @全体成员，{at114514} @指定QQ号，{urlpic=链接} 网络图片。"""
     return msg
 
 
@@ -737,16 +737,28 @@ class ObjMysql:
             up_list.append(up_target)
         return up_list
 
-    def get_up_list_with_pic_struct(self) -> List:
+    def get_up_list_with_pic_struct(self, width=1000) -> List:
         ups: List[Up] = self.datasource.get_up_list()
         up_list = []
         target_map = {}
+        type_length = 21
+        real_width = int(width / 15)
         for up in ups:
             for target in up.targets:
                 push_target = f"{'群' if target.type == PushType.Group else '好友'}({target.id})"
                 if not target_map.get(push_target):
                     target_map[push_target] = []
-                target_map[push_target].append(f"{up.uname}(UID:{up.uid})")
+                push_type = []
+                if target.dynamic_update.enabled:
+                    push_type.append("news")
+                if target.live_on.enabled:
+                    push_type.append("live_on")
+                if target.live_off.enabled:
+                    push_type.append("live_off")
+                uname_uid = f"{up.uname}(UID:{up.uid})"
+                uname_uid_str = f"{uname_uid:<{int(real_width/2)}}" + "\t"
+                push_type_str = f"{'/'.join(push_type):<{type_length}}"
+                target_map[push_target].append(uname_uid_str + push_type_str.rjust(real_width - len(uname_uid_str), ' '))
         for t, u in target_map.items():
             up_target = {"section": t, "context": []}
             for target in u:
@@ -754,11 +766,26 @@ class ObjMysql:
             up_list.append(up_target)
         return up_list
 
-    def get_ups_by_target_with_pic_struct(self, num: int, type: PushType = PushType.Group) -> List:
+    def get_ups_by_target_with_pic_struct(self, num: int, type: PushType = PushType.Group, width=1000) -> List:
         ups: List[Up] = self.datasource.get_ups_by_target(num, type)
         up_list = []
+        type_length = 21
+        real_width = int(width / 15)
         for up in ups:
-            up_list.append(f"{up.uname}(UID:{up.uid})")
+            push_type = []
+            for target in up.targets:
+                if target.id == num and target.type == type:
+                    if target.dynamic_update.enabled:
+                        push_type.append("news")
+                    if target.live_on.enabled:
+                        push_type.append("live_on")
+                    if target.live_off.enabled:
+                        push_type.append("live_off")
+                    break
+            uname_uid = f"{up.uname}(UID:{up.uid})"
+            uname_uid_str = f"{uname_uid:<{int(real_width/2)}}" + "\t"
+            push_type_str = f"{'/'.join(push_type):<{type_length}}"
+            up_list.append(uname_uid_str + push_type_str.rjust(real_width - len(uname_uid_str), ' '))
         return up_list
 
     def get_ups_by_targets(self, friend_set: set, group_set: set) -> List:
