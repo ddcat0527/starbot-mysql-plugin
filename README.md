@@ -58,19 +58,19 @@ mysql默认数据库为starbot，内部表结构自行执行starbot.sql生成
 
 
 主人命令示例：
-![9863cae698b9182e86aef0aab0f90be4](https://github.com/user-attachments/assets/9a326c3b-273d-4209-b3db-8a2a7b554b7f)
+![5cc31543a624c7440342b9aa2b9fb6f9](https://github.com/user-attachments/assets/58dacea6-f7b1-45ef-aaeb-0e204a9716c3)
 
 
 群聊命令示例：
-![ad6ab2d42ad373e6b665de9fedf9b359_720](https://github.com/user-attachments/assets/3dd9b774-b3be-49b8-916b-bd482762078b)
+![79137602d6f3ecfc1df14a7f02c9abda_720](https://github.com/user-attachments/assets/bc9d34e0-8925-4a40-b20f-55fc36b2349a)
 
 
 私聊命令示例：
-![5b9fecf0c7bb96fe39dc507182d2fbfb](https://github.com/user-attachments/assets/e2cf7b53-7e55-42bf-bf69-20c599bdd4cf)
+![23f96861c0b397cb7955b5d2d3257b31_720](https://github.com/user-attachments/assets/b3f618f5-cba2-48bf-bcdf-2c6413376220)
 
 
 加好友自动同意并发送指引：
-![baf125ee1fb7c7ceb5a03e8d8dd6b087](https://github.com/user-attachments/assets/429d9850-382b-4f7c-8a51-8ffde0dbbe26)
+![5d0be45ff8ab8f7e6230551a7453cd58](https://github.com/user-attachments/assets/40a4eb6d-5d37-46e7-a7bb-385dbf4fae91)
 
 
 #### 引用
