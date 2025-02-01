@@ -20,7 +20,7 @@ from starbot.painter.PicGenerator import PicGenerator, Color
 
 from loguru import logger
 
-_version = "v1.0.1"
+_version = "v1.0.2"
 
 def check_at_object(account: int, message: MessageChain):
     for element in message.content:
@@ -727,15 +727,9 @@ class ObjMysql:
                     friend_set.add(target.id)
         return group_set, friend_set
 
-    def get_up_list_with_pic_struct_d(self) -> List:
-        ups: List[Up] = self.datasource.get_up_list()
-        up_list = []
-        for up in ups:
-            up_target = {"section": f"{up.uname}(UID:{up.uid})", "context": []}
-            for target in up.targets:
-                up_target["context"].append(f"{'群' if target.type == PushType.Group else '好友'}({target.id})")
-            up_list.append(up_target)
-        return up_list
+    def get_up_list_by_num_origin(self, num: int, push_type: PushType = PushType.Group) -> List:
+        ups: List[Up] = self.datasource.get_ups_by_target(num, push_type)
+        return ups
 
     def get_up_list_with_pic_struct(self, width=1000) -> List:
         ups: List[Up] = self.datasource.get_up_list()
@@ -985,6 +979,12 @@ class ObjMysql:
         if len(target_mysql) == 0:
             return False
         return True
+
+    async def clean_describe(self, bot: int, num: int, push_type: PushType = PushType.Group):
+        ups: List[Up] = self.get_up_list_by_num_origin(num, push_type)
+        for up in ups:
+            await self.init_target(bot, up.uid, num, push_type)
+            await self.delete()
 
     # insert and update
     async def save(self):

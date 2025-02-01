@@ -35,9 +35,11 @@ reload_uid = ["重载订阅", "reloaduid"]
 add_logo = ["设置立绘", "setlogo"]
 clear_logo = ["清除立绘", "clearlogo"]
 set_message = ["设置推送信息", "setmessage"]
+quit_group = ["退出群聊", "quit"]
 check_describe_abnormal = ["检测异常订阅", "checkabnormal"]
 clear_describe_abnormal = ["清除异常订阅", "clearabnormal"]
 trans_to_mysql = ["数据源转储", "datasourcetrans"]
+
 help_cmd = ["订阅帮助"]
 
 describe_cmd = {
@@ -155,6 +157,17 @@ describe_cmd = {
                            "设置动态提醒，开播提醒和下播提醒",
                            "注意：uid需要被订阅才能成功",
                            f"示例: {prefix}{set_message[0]} -g 456789 uid -t live_on"]
+    },
+    quit_group[0]: {
+        "cmd": quit_group,
+        "describe_group": [f"{prefix}[{' | '.join(quit_group)}]",
+                           "bot退出当前群聊并清除订阅内容",
+                           "为防止被滥用，该命令需要群主权限可用",
+                           f"示例: {prefix}{quit_group[0]}"],
+        "describe_friend": [],
+        "describe_admin": [f"{prefix}[{' | '.join(quit_group)}] group_num",
+                           "bot退出指定群聊并清除订阅内容",
+                           f"示例: {prefix}{quit_group[0]} 123456"]
     },
     check_describe_abnormal[0]: {
         "cmd": check_describe_abnormal,
@@ -940,6 +953,76 @@ async def _SetMessageFriend(app: Ariadne, sender: Friend, uid: MessageChain = Re
             f"好友[{sender.nickname}]({sender.id}) 触发命令 : {set_message[0]} 成功 {msg_prefix}[{uname}]({uid})")
         await app.send_message(sender,
                                MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){set_message[0]}成功", width=800)))
+
+
+@channel.use(
+    ListenerSchema(
+        listening_events=[GroupMessage],
+        inline_dispatchers=[Twilight(
+            ElementMatch(At, optional=True),
+            FullMatch(prefix),
+            UnionMatch(*quit_group)
+        )],
+    )
+)
+async def _QuitGroup(app: Ariadne, sender: Group, member: Member, message: MessageChain):
+    if check_not_mysql_datasource():
+        return
+    if check_at_object(app.account, message) is False:
+        return
+    group = sender.id
+    bot = app.account
+    logger.info(f"群[{sender.name}]({sender.id}) 成员[{member.name}]({member.id}) 触发命令 : {quit_group[0]}")
+
+    if master_qq == "" or f"{member.id}" != f"{master_qq}":
+        person = await app.get_member(group, member.id)
+        if person.permission < MemberPerm.Administrator:
+            logger.info(
+                f"群[{sender.name}]({sender.id}) 触发命令 : {quit_group[0]} 权限不足({member.id = }, {person.permission = })")
+            await app.send_message(sender, MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
+            return
+    await app.send_message(sender, MessageChain(draw_pic(f"{quit_group[0]}成功", width=800)))
+    await app.quit_group(sender)
+    obj_mysql = ObjMysql()
+    await obj_mysql.clean_describe(bot, sender.id, PushType.Group)
+    logger.info(f"群[{sender.name}]({sender.id}) 成员[{member.name}]({member.id}) 触发命令 : {quit_group[0]} 成功")
+
+
+
+@channel.use(
+    ListenerSchema(
+        listening_events=[FriendMessage],
+        inline_dispatchers=[Twilight(
+            ElementMatch(At, optional=True),
+            FullMatch(prefix),
+            UnionMatch(*quit_group).space(SpacePolicy.FORCE),
+            "group_num" @ ParamMatch()
+        )],
+    )
+)
+async def _QuitGroupPrivate(app: Ariadne, sender: Friend, group_num: MessageChain = ResultValue()):
+    if check_not_mysql_datasource():
+        return
+    if master_qq == "" or master_qq != sender.id:
+        # 功能需要配置MASTER_QQ
+        return
+    group_num = group_num.display
+    if group_num == "" or not group_num.isdigit():
+        logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {quit_group[0]} group_num输入不合法({group_num})")
+        await app.send_message(sender, MessageChain(draw_pic(f"group_num输入不合法({group_num})，操作失败", width=800)))
+        return
+    group_num = int(group_num)
+    logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {quit_group[0]} ({group_num = })")
+    group_check = await app.get_group(group_num)
+    if group_check is None:
+        logger.warning(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {quit_group[0]} bot未加入群聊({group_num})")
+    else:
+        await app.quit_group(group_num)
+    bot = app.account
+    obj_mysql = ObjMysql()
+    await obj_mysql.clean_describe(bot, group_num, PushType.Group)
+    logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {quit_group[0]} 成功")
+    await app.send_message(sender, MessageChain(draw_pic(f"{quit_group[0]}成功", width=800)))
 
 
 @channel.use(
