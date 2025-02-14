@@ -34,8 +34,8 @@ list_describe = ["查询订阅", "list"]
 reload_uid = ["重载订阅", "reloaduid"]
 add_logo = ["设置立绘", "setlogo"]
 clear_logo = ["清除立绘", "clearlogo"]
-set_message = ["设置推送信息", "setmessage"]
-quit_group = ["退出群聊", "quit"]
+set_message = ["设置推送信息", "设置推送消息", "setmessage"]
+quit_group = ["退出群聊", "退群", "quit"]
 check_describe_abnormal = ["检测异常订阅", "checkabnormal"]
 clear_describe_abnormal = ["清除异常订阅", "clearabnormal"]
 trans_to_mysql = ["数据源转储", "datasourcetrans"]
@@ -582,8 +582,7 @@ async def _SetLogoGroup(app: Ariadne, sender: Group, member: Member, message: Me
         if person.permission < MemberPerm.Administrator:
             logger.info(
                 f"群[{sender.name}]({sender.id}) 触发命令 : {add_logo[0]} 权限不足({member.id = }, {person.permission = })")
-            await app.send_message(sender,
-                                   MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
+            await app.send_message(sender, MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
             return
     obj_mysql = ObjMysql()
     result = await obj_mysql.check_uid_exist(uid, group)
@@ -592,20 +591,25 @@ async def _SetLogoGroup(app: Ariadne, sender: Group, member: Member, message: Me
         await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
         return
     time_out = 60
-    await app.send_message(sender, MessageChain(f"请在{time_out}秒内发送立绘图片"))
+    await app.send_message(sender, MessageChain(f"请在{time_out}秒内发送立绘图片\n发送 取消 则操作取消，无事发生"))
 
     @Waiter.create_using_function([GroupMessage])
-    async def words_waiter(s: Group, m: Member, msg: MessageChain):
+    async def words_waiter(s: Group, m: Member, waiter_msg: MessageChain):
         if sender.id == s.id and member.id == m.id:
-            return msg
+            return waiter_msg
 
     try:
         ret_msg = await inc.wait(words_waiter, timeout=time_out)  # 强烈建议设置超时时间否则将可能会永远等待
     except asyncio.TimeoutError:
         result = "超时自动取消"
-        logger.info(f"好友[{sender.name}]({sender.id}) 命令: {add_logo[0]} 失败 原因：{result}")
+        logger.info(f"群[{sender.name}]({sender.id}) 命令: {add_logo[0]} 失败 原因：{result}")
         await app.send_message(sender, MessageChain(result))
     else:
+        if ret_msg.display == "取消":
+            result = "操作已取消"
+            logger.info(f"群[{sender.name}]({sender.id}) 命令: {add_logo[0]} 失败 原因：{result}")
+            await app.send_message(sender, MessageChain(result))
+            return
         image = None
         image_count = 0
         for element in ret_msg.content:
@@ -671,12 +675,12 @@ async def _SetLogoFriend(app: Ariadne, sender: Friend, uid: MessageChain = Resul
         await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
         return
     time_out = 60
-    await app.send_message(sender, MessageChain(f"请在{time_out}秒内发送立绘图片"))
+    await app.send_message(sender, MessageChain(f"请在{time_out}秒内发送立绘图片\n发送 取消 则操作取消，无事发生"))
 
     @Waiter.create_using_function([FriendMessage])
-    async def words_waiter(s: Friend, msg: MessageChain):
+    async def words_waiter(s: Friend, waiter_msg: MessageChain):
         if sender.id == s.id:
-            return msg
+            return waiter_msg
 
     try:
         ret_msg = await inc.wait(words_waiter, timeout=time_out)  # 强烈建议设置超时时间否则将可能会永远等待
@@ -685,6 +689,11 @@ async def _SetLogoFriend(app: Ariadne, sender: Friend, uid: MessageChain = Resul
         logger.info(f"好友[{sender.nickname}]({sender.id}) 命令: {add_logo[0]} 失败 原因：{result}")
         await app.send_message(sender, MessageChain(result))
     else:
+        if ret_msg.display == "取消":
+            result = "操作已取消"
+            logger.info(f"好友[{sender.nickname}]({sender.id}) 命令: {add_logo[0]} 失败 原因：{result}")
+            await app.send_message(sender, MessageChain(result))
+            return
         image = None
         image_count = 0
         for element in ret_msg.content:
@@ -848,12 +857,12 @@ async def _SetMessageGroup(app: Ariadne, sender: Group, member: Member, message:
         await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
         return
     timeout_s = 600
-    await app.send_message(sender, MessageChain(get_message_help(message_type) + f"\nat元素和图片能够被正确识别\n请在{timeout_s}秒内发送内容:"))
+    await app.send_message(sender, MessageChain(get_message_help(message_type) + f"\nat元素和图片能够被正确识别\n请在{timeout_s}秒内发送内容\n发送 取消 则操作取消，无事发生"))
 
     @Waiter.create_using_function([GroupMessage])
-    async def words_waiter(s: Group, m: Member, msg: MessageChain):
+    async def words_waiter(s: Group, m: Member, waiter_msg: MessageChain):
         if sender.id == s.id and member.id == m.id:
-            return msg
+            return waiter_msg
 
     try:
         ret_msg = await inc.wait(words_waiter, timeout=timeout_s)  # 强烈建议设置超时时间否则将可能会永远等待
@@ -862,6 +871,11 @@ async def _SetMessageGroup(app: Ariadne, sender: Group, member: Member, message:
         logger.info(f"群[{sender.name}]({sender.id}) 命令: {set_message[0]} 失败 原因：{result}")
         await app.send_message(sender, MessageChain(result))
     else:
+        if ret_msg.display == "取消":
+            result = "操作已取消"
+            logger.info(f"群[{sender.name}]({sender.id}) 命令: {set_message[0]} 失败 原因：{result}")
+            await app.send_message(sender, MessageChain(result))
+            return
         msg = ""
         for element in ret_msg.content:
             if isinstance(element, Image):
@@ -925,20 +939,25 @@ async def _SetMessageFriend(app: Ariadne, sender: Friend, uid: MessageChain = Re
         await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
         return
     timeout_s = 600
-    await app.send_message(sender, MessageChain(get_message_help(message_type) + f"\n图片能够被正确识别\n请在{timeout_s}秒内发送内容:"))
+    await app.send_message(sender, MessageChain(get_message_help(message_type) + f"\n图片能够被正确识别\n请在{timeout_s}秒内发送内容\n发送 取消 则操作取消，无事发生"))
 
     @Waiter.create_using_function([FriendMessage])
-    async def words_waiter(s: Friend, msg: MessageChain):
+    async def words_waiter(s: Friend, waiter_msg: MessageChain):
         if sender.id == s.id:
-            return msg
+            return waiter_msg
 
     try:
-        ret_msg = await inc.wait(words_waiter, timeout=60)  # 强烈建议设置超时时间否则将可能会永远等待
+        ret_msg = await inc.wait(words_waiter, timeout=timeout_s)  # 强烈建议设置超时时间否则将可能会永远等待
     except asyncio.TimeoutError:
         result = "超时自动取消"
         logger.info(f"好友[{sender.nickname}]({sender.id}) 命令: {set_message[0]} 失败 原因：{result}")
         await app.send_message(sender, MessageChain(result))
     else:
+        if ret_msg.display == "取消":
+            result = "操作已取消"
+            logger.info(f"好友[{sender.nickname}]({sender.id}) 命令: {set_message[0]} 失败 原因：{result}")
+            await app.send_message(sender, MessageChain(result))
+            return
         msg = ""
         for element in ret_msg.content:
             if isinstance(element, Image):

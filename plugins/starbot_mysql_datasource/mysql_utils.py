@@ -20,7 +20,8 @@ from starbot.painter.PicGenerator import PicGenerator, Color
 
 from loguru import logger
 
-_version = "v1.0.2"
+_version = "v1.0.3"
+
 
 def check_at_object(account: int, message: MessageChain):
     for element in message.content:
@@ -750,9 +751,10 @@ class ObjMysql:
                 if target.live_off.enabled:
                     push_type.append("live_off")
                 uname_uid = f"{up.uname}(UID:{up.uid})"
-                uname_uid_str = f"{uname_uid:<{int(real_width/2)}}" + "\t"
+                uname_uid_str = f"{uname_uid:<{int(real_width / 2)}}" + "\t"
                 push_type_str = f"{'/'.join(push_type):<{type_length}}"
-                target_map[push_target].append(uname_uid_str + push_type_str.rjust(real_width - len(uname_uid_str), ' '))
+                target_map[push_target].append(
+                    uname_uid_str + push_type_str.rjust(real_width - len(uname_uid_str), ' '))
         for t, u in target_map.items():
             up_target = {"section": t, "context": []}
             for target in u:
@@ -777,7 +779,7 @@ class ObjMysql:
                         push_type.append("live_off")
                     break
             uname_uid = f"{up.uname}(UID:{up.uid})"
-            uname_uid_str = f"{uname_uid:<{int(real_width/2)}}" + "\t"
+            uname_uid_str = f"{uname_uid:<{int(real_width / 2)}}" + "\t"
             push_type_str = f"{'/'.join(push_type):<{type_length}}"
             up_list.append(uname_uid_str + push_type_str.rjust(real_width - len(uname_uid_str), ' '))
         return up_list
