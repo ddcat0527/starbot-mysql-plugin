@@ -3,7 +3,7 @@
 #### 介绍
 starbot自定义命令包，包含如下功能
 
-1. 递归加载plugins下的所有文件，报错则打印日志并跳过，配合魔改版starbot可实现热更新插件（需要配置MASTER_QQ）
+1. 递归加载plugins下的所有文件，报错则打印日志并跳过（需要配置MASTER_QQ）
 2. 拉群自动通过（需要配置MASTER_QQ）
 3. 好友申请自动通过（需要配置MASTER_QQ）
 4. mysql数据源下的机器人的动态订阅功能和当前内存数据源到mysql的转储能力
@@ -44,7 +44,7 @@ starbot自定义命令包，包含如下功能
 
 将目录置于starbot的启动文件位置，添加config.set("CUSTOM_COMMANDS_PACKAGE", "plugins")即可
 
-部分功能依赖MASTER_QQ配置项，需要添加config.set("MASTER_QQ", qq号)，例如config.set("MASTER_QQ", 123456)
+功能依赖MASTER_QQ配置项，需要添加config.set("MASTER_QQ", qq号)，例如config.set("MASTER_QQ", 123456)
 
 部分功能需要starbot启用mysql数据源而并非使用json数据源，需要配置对应config.set("MYSQL_HOST", "mysqladdr") config.set("MYSQL_USERNAME", "username") config.set("MYSQL_PASSWORD", "password"),并且通过datasource = MySQLDataSource()启用mysql数据源 _[而不要使用datasource = JsonDataSource("推送配置.json")]_ 
 
@@ -54,11 +54,11 @@ starbot自定义命令包，包含如下功能
 
 #### 使用说明
 
-可以新增插件，放入plugins，配置好__init__.py，即可自动加载
+可以新增插件，放入plugins文件夹中并重启starbot，即可被自动导入
 
 mysql默认数据库为starbot，内部表结构自行执行starbot.sql生成
 
-以下命令自行增加config配置的前缀
+以下命令自行增加config配置的命令前缀
 
 帮助： 订阅帮助
 
