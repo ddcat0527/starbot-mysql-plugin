@@ -19,7 +19,7 @@ from starbot.utils import config
 from starbot.core.model import PushType
 
 from .mysql_utils import ObjMysql, check_not_mysql_datasource, check_mysql_datasource, create_auto_follow_task, \
-    draw_image_pic, draw_pic, check_at_object, get_message_help, select_uname_and_room_id
+    draw_image_pic, draw_pic, check_at_object, get_message_help, select_uname_and_room_id, get_logger_prefix
 from .mysql_trans import datasource_trans_to_mysql
 
 prefix = config.get("COMMAND_PREFIX")
@@ -28,8 +28,8 @@ master_qq = config.get("MASTER_QQ")
 channel = Channel.current()
 inc = create(InterruptControl)
 
-add_describe = ["添加订阅", "watch"]
-delete_describe = ["删除订阅", "unwatch"]
+add_describe = ["添加订阅", "新增订阅", "watch"]
+delete_describe = ["删除订阅", "取消订阅", "unwatch"]
 list_describe = ["查询订阅", "list"]
 reload_uid = ["重载订阅", "reloaduid"]
 add_logo = ["设置立绘", "setlogo"]
@@ -205,7 +205,7 @@ describe_cmd = {
         inline_dispatchers=[Twilight(
             ElementMatch(At, optional=True),
             FullMatch(prefix),
-            UnionMatch(*add_describe).space(SpacePolicy.FORCE),
+            "cmd" @ UnionMatch(*add_describe).space(SpacePolicy.FORCE),
             "uid" @ ParamMatch(),
             "type" @ ArgumentMatch("-t", "--type", type=str, choices=["news", "live", "live_on", "all"], default="all",
                                    optional=True),
@@ -217,7 +217,7 @@ describe_cmd = {
     )
 )
 async def _AddListenGroup(app: Ariadne, sender: Group, member: Member, message: MessageChain,
-                          uid: MessageChain = ResultValue(),
+                          cmd: MessageChain = ResultValue(), uid: MessageChain = ResultValue(),
                           type: Optional[str] = ResultValue(), atall: Optional[str] = ResultValue(),
                           report: Optional[str] = ResultValue()):
     if check_not_mysql_datasource():
@@ -225,22 +225,22 @@ async def _AddListenGroup(app: Ariadne, sender: Group, member: Member, message: 
     if check_at_object(app.account, message) is False:
         return
     uid = uid.display
+    logger_prefix = get_logger_prefix(cmd.display, sender, member)
     if uid == "" or not uid.isdigit():
-        logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {add_describe[0]} uid输入不合法({uid})")
+        logger.info(f"{logger_prefix} uid输入不合法({uid})")
         await app.send_message(sender, MessageChain(draw_pic(f"uid输入不合法({uid})，操作失败", width=800)))
         return
     uid = int(uid)
     group = sender.id
     bot = app.account
     logger.info(
-        f"群[{sender.name}]({sender.id}) 触发命令 : {add_describe[0]} ({uid = }, {group = }, {type = }, {atall = }, {report = })")
+        f"{logger_prefix} ({uid = }, {group = }, {type = }, {atall = }, {report = })")
     if master_qq == "" or f"{member.id}" != f"{master_qq}":
         person = await app.get_member(group, member.id)
         if person.permission < MemberPerm.Administrator:
             logger.info(
-                f"群[{sender.name}]({sender.id}) 触发命令 : {add_describe[0]} 权限不足({member.id = }, {person.permission = })")
-            await app.send_message(sender,
-                                   MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
+                f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
+            await app.send_message(sender, MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
             return
     obj_mysql = ObjMysql()
     await obj_mysql.init_target(bot, uid, group)
@@ -248,8 +248,8 @@ async def _AddListenGroup(app: Ariadne, sender: Group, member: Member, message: 
     await obj_mysql.save()
     uname, _ = obj_mysql.get_target_uname_and_roomid()
     create_auto_follow_task()
-    logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {add_describe[0]} 成功 [{uname}]({uid})")
-    await app.send_message(sender, MessageChain(draw_pic(f"{uname}(UID:{uid})添加订阅成功", width=800)))
+    logger.info(f"{logger_prefix} 成功 [{uname}]({uid})")
+    await app.send_message(sender, MessageChain(draw_pic(f"{uname}(UID:{uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -258,7 +258,7 @@ async def _AddListenGroup(app: Ariadne, sender: Group, member: Member, message: 
         inline_dispatchers=[Twilight(
             ElementMatch(At, optional=True),
             FullMatch(prefix),
-            UnionMatch(*add_describe).space(SpacePolicy.FORCE),
+            "cmd" @ UnionMatch(*add_describe).space(SpacePolicy.FORCE),
             "uid" @ ParamMatch(),
             "group" @ ArgumentMatch("-g", "--group", type=int, default=0, optional=True),
             "type" @ ArgumentMatch("-t", "--type", type=str, choices=["news", "live", "live_on", "all"], default="all",
@@ -270,28 +270,28 @@ async def _AddListenGroup(app: Ariadne, sender: Group, member: Member, message: 
         )],
     )
 )
-async def _AddListenFriend(app: Ariadne, sender: Friend, uid: MessageChain = ResultValue(),
-                           group: Optional[int] = ResultValue(),
+async def _AddListenFriend(app: Ariadne, sender: Friend, cmd: MessageChain = ResultValue(),
+                           uid: MessageChain = ResultValue(), group: Optional[int] = ResultValue(),
                            type: Optional[str] = ResultValue(), atall: Optional[str] = ResultValue(),
                            report: Optional[str] = ResultValue()):
     if check_not_mysql_datasource():
         return
     uid = uid.display
+    logger_prefix = get_logger_prefix(cmd.display, sender)
     if uid == "" or not uid.isdigit():
-        logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 :{add_describe[0]} uid输入不合法({uid})")
+        logger.info(f"{logger_prefix} uid输入不合法({uid})")
         await app.send_message(sender, MessageChain(draw_pic(f"uid输入不合法({uid})，操作失败", width=800)))
         return
     uid = int(uid)
     bot = app.account
-    logger.info(
-        f"好友[{sender.nickname}]({sender.id}) 触发命令 : {add_describe[0]} ({uid = }, {group = }, {type = }, {atall = }, {report = })")
+    logger.info(f"{logger_prefix} ({uid = }, {group = }, {type = }, {atall = }, {report = })")
     if group != 0:
         if master_qq == "" or master_qq != sender.id:
             # 功能需要配置MASTER_QQ
             return
         group_check = await app.get_group(group)
         if group_check is None:
-            logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {add_describe[0]} bot未加入群聊({group})")
+            logger.info(f"{logger_prefix} bot未加入群聊({group})")
             await app.send_message(sender, MessageChain(draw_pic(f"bot未加入群聊({group})，操作失败", width=800)))
             return
         source = group
@@ -300,7 +300,7 @@ async def _AddListenFriend(app: Ariadne, sender: Friend, uid: MessageChain = Res
     else:
         friend_check = await app.get_friend(sender.id)
         if friend_check is None:
-            logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {add_describe[0]} bot未添加好友({sender.id})")
+            logger.info(f"{logger_prefix} bot未添加好友({sender.id})")
             await app.send_message(sender, MessageChain(draw_pic(f"bot未添加好友({sender.id})，操作失败", width=800)))
             return
         source = sender.id
@@ -313,8 +313,8 @@ async def _AddListenFriend(app: Ariadne, sender: Friend, uid: MessageChain = Res
     await obj_mysql.save()
     uname, _ = obj_mysql.get_target_uname_and_roomid()
     create_auto_follow_task()
-    logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {add_describe[0]} 成功 {msg_prefix}[{uname}]({uid})")
-    await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}(UID:{uid})添加订阅成功", width=800)))
+    logger.info(f"{logger_prefix} 成功 {msg_prefix}[{uname}]({uid})")
+    await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}(UID:{uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -323,46 +323,46 @@ async def _AddListenFriend(app: Ariadne, sender: Friend, uid: MessageChain = Res
         inline_dispatchers=[Twilight(
             ElementMatch(At, optional=True),
             FullMatch(prefix),
-            UnionMatch(*delete_describe).space(SpacePolicy.FORCE),
+            "cmd" @ UnionMatch(*delete_describe).space(SpacePolicy.FORCE),
             "uid" @ ParamMatch()
         )],
     )
 )
 async def _DelListenGroup(app: Ariadne, sender: Group, member: Member, message: MessageChain,
-                          uid: MessageChain = ResultValue()):
+                          cmd: MessageChain = ResultValue(), uid: MessageChain = ResultValue()):
     if check_not_mysql_datasource():
         return
     if check_at_object(app.account, message) is False:
         return
     uid = uid.display
+    logger_prefix = get_logger_prefix(cmd.display, sender, member)
     if uid == "" or not uid.isdigit():
-        logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {delete_describe[0]} uid输入不合法({uid})")
+        logger.info(f"{logger_prefix} uid输入不合法({uid})")
         await app.send_message(sender, MessageChain(draw_pic(f"uid输入不合法({uid})，操作失败", width=800)))
         return
     uid = int(uid)
     group = sender.id
     bot = app.account
-    logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {delete_describe[0]} ({uid = }, {group = })")
+    logger.info(f"{logger_prefix} ({uid = }, {group = })")
 
     if master_qq == "" or f"{member.id}" != f"{master_qq}":
         person = await app.get_member(group, member.id)
         if person.permission < MemberPerm.Administrator:
             logger.info(
-                f"群[{sender.name}]({sender.id}) 触发命令 : {delete_describe[0]} 权限不足({member.id = }, {person.permission = })")
-            await app.send_message(sender,
-                                   MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
+                f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
+            await app.send_message(sender, MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
             return
     obj_mysql = ObjMysql()
     result = await obj_mysql.check_uid_exist(uid, group)
     if not result:
-        logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {delete_describe[0]} uid未被订阅({uid = })")
+        logger.info(f"{logger_prefix} uid未被订阅({uid = })")
         await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
         return
     await obj_mysql.init_target(bot, uid, group)
     await obj_mysql.delete()
     uname, _ = obj_mysql.get_target_uname_and_roomid()
-    logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {delete_describe[0]} 成功{uname}({uid})")
-    await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid})删除订阅成功", width=800)))
+    logger.info(f"{logger_prefix} 成功{uname}({uid})")
+    await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -371,24 +371,25 @@ async def _DelListenGroup(app: Ariadne, sender: Group, member: Member, message: 
         inline_dispatchers=[Twilight(
             ElementMatch(At, optional=True),
             FullMatch(prefix),
-            UnionMatch(*delete_describe).space(SpacePolicy.FORCE),
+            "cmd" @ UnionMatch(*delete_describe).space(SpacePolicy.FORCE),
             "uid" @ ParamMatch(),
             "group" @ ArgumentMatch("-g", "--group", type=int, default=0, optional=True)
         )],
     )
 )
-async def _DelListenFriend(app: Ariadne, sender: Friend, uid: MessageChain = ResultValue(),
-                           group: Optional[int] = ResultValue()):
+async def _DelListenFriend(app: Ariadne, sender: Friend, cmd: MessageChain = ResultValue(),
+                           uid: MessageChain = ResultValue(), group: Optional[int] = ResultValue()):
     if check_not_mysql_datasource():
         return
     uid = uid.display
+    logger_prefix = get_logger_prefix(cmd.display, sender)
     if uid == "" or not uid.isdigit():
-        logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {delete_describe[0]} uid输入不合法({uid})")
+        logger.info(f"{logger_prefix} uid输入不合法({uid})")
         await app.send_message(sender, MessageChain(draw_pic(f"uid输入不合法({uid})，操作失败", width=800)))
         return
     uid = int(uid)
     bot = app.account
-    logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {delete_describe[0]} ({uid = }, {group = })")
+    logger.info(f"{logger_prefix} ({uid = }, {group = })")
 
     if group != 0:
         if master_qq == "" or master_qq != sender.id:
@@ -405,15 +406,15 @@ async def _DelListenFriend(app: Ariadne, sender: Friend, uid: MessageChain = Res
     obj_mysql = ObjMysql()
     result = await obj_mysql.check_uid_exist(uid, source, source_type)
     if not result:
-        logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {delete_describe[0]} uid未被订阅({uid = })")
+        logger.info(f"{logger_prefix} uid未被订阅({uid = })")
         await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
         return
     await obj_mysql.init_target(bot, uid, source, source_type)
     await obj_mysql.delete()
     uname, _ = obj_mysql.get_target_uname_and_roomid()
     logger.info(
-        f"好友[{sender.nickname}]({sender.id}) 触发命令 : {delete_describe[0]} 成功 {msg_prefix}[{uname}]({uid})")
-    await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}({uid})删除订阅成功", width=800)))
+        f"{logger_prefix} 成功 {msg_prefix}[{uname}]({uid})")
+    await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -422,21 +423,22 @@ async def _DelListenFriend(app: Ariadne, sender: Friend, uid: MessageChain = Res
         inline_dispatchers=[Twilight(
             ElementMatch(At, optional=True),
             FullMatch(prefix),
-            UnionMatch(*trans_to_mysql)
+            "cmd" @ UnionMatch(*trans_to_mysql)
         )],
     )
 )
-async def _TransToMysql(app: Ariadne, sender: Friend):
+async def _TransToMysql(app: Ariadne, sender: Friend, cmd: MessageChain = ResultValue()):
     if check_mysql_datasource():
         return
     if master_qq == "" or master_qq != sender.id:
         # 功能需要配置MASTER_QQ
         return
-    logger.info(f"主人[{sender.nickname}]({sender.id}) 触发命令 : {trans_to_mysql[0]}")
+    logger_prefix = get_logger_prefix(cmd.display, sender)
+    logger.info(f"{logger_prefix}")
     result, message = await datasource_trans_to_mysql()
     if not result:
-        await app.send_message(sender, MessageChain(draw_pic(f"{trans_to_mysql[0]} 失败，原因：{message}")))
-    await app.send_message(sender, MessageChain(draw_pic(f"{trans_to_mysql[0]} 成功", width=800)))
+        await app.send_message(sender, MessageChain(draw_pic(f"{cmd.display} 失败，原因：{message}")))
+    await app.send_message(sender, MessageChain(draw_pic(f"{cmd.display} 成功", width=800)))
 
 
 @channel.use(
@@ -445,12 +447,13 @@ async def _TransToMysql(app: Ariadne, sender: Friend):
         inline_dispatchers=[Twilight(
             ElementMatch(At, optional=True),
             FullMatch(prefix),
-            UnionMatch(*list_describe),
+            "cmd" @ UnionMatch(*list_describe),
             "text" @ ArgumentMatch("-t", "--text", type=str, choices=["true", "false"], default="false", optional=True),
         )],
     )
 )
-async def _GetUpList(app: Ariadne, sender: Group, message: MessageChain, text: Optional[str] = ResultValue()):
+async def _GetUpList(app: Ariadne, sender: Group, message: MessageChain, cmd: MessageChain = ResultValue(),
+                     text: Optional[str] = ResultValue()):
     if check_not_mysql_datasource():
         return
     if check_at_object(app.account, message) is False:
@@ -459,14 +462,15 @@ async def _GetUpList(app: Ariadne, sender: Group, message: MessageChain, text: O
         text_mode = False
     else:
         text_mode = True
-    logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {list_describe[0]}, {text = }")
+    logger_prefix = get_logger_prefix(cmd.display, sender)
+    logger.info(f"{logger_prefix} {text = }")
     group = sender.id
     obj_mysql = ObjMysql()
     width = 1200
     result = obj_mysql.get_ups_by_target_with_pic_struct(group, PushType.Group, width=width)
     if not result:
         result = ["未查询到订阅"]
-    logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {list_describe[0]} 成功 \n{result}")
+    logger.info(f"{logger_prefix} 成功 \n{result}")
     if text_mode:
         res = "\n".join(result)
     else:
@@ -480,19 +484,21 @@ async def _GetUpList(app: Ariadne, sender: Group, message: MessageChain, text: O
         inline_dispatchers=[Twilight(
             ElementMatch(At, optional=True),
             FullMatch(prefix),
-            UnionMatch(*list_describe),
+            "cmd" @ UnionMatch(*list_describe),
             "text" @ ArgumentMatch("-t", "--text", type=str, choices=["true", "false"], default="false", optional=True),
         )],
     )
 )
-async def _GetUpListAll(app: Ariadne, sender: Friend, text: Optional[str] = ResultValue()):
+async def _GetUpListAll(app: Ariadne, sender: Friend, cmd: MessageChain = ResultValue(),
+                        text: Optional[str] = ResultValue()):
     if check_not_mysql_datasource():
         return
     if text == "false":
         text_mode = False
     else:
         text_mode = True
-    logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {list_describe[0]}, {text = }")
+    logger_prefix = get_logger_prefix(cmd.display, sender)
+    logger.info(f"{logger_prefix} {text = }")
     obj_mysql = ObjMysql()
     width = 1200
     if master_qq == "" or master_qq != sender.id:
@@ -507,7 +513,7 @@ async def _GetUpListAll(app: Ariadne, sender: Friend, text: Optional[str] = Resu
             result = res_temp
     if not result:
         result = ["未查询到订阅"]
-    logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {list_describe[0]} 成功 \n{result}")
+    logger.info(f"{logger_prefix} 成功 \n{result}")
     if text_mode:
         res = "\n".join(result)
     else:
@@ -521,18 +527,20 @@ async def _GetUpListAll(app: Ariadne, sender: Friend, text: Optional[str] = Resu
         inline_dispatchers=[Twilight(
             ElementMatch(At, optional=True),
             FullMatch(prefix),
-            UnionMatch(*reload_uid).space(SpacePolicy.FORCE),
+            "cmd" @ UnionMatch(*reload_uid).space(SpacePolicy.FORCE),
             "uid" @ ParamMatch(),
         )],
     )
 )
-async def _ReloadUid(app: Ariadne, sender: Friend, uid: MessageChain = ResultValue()):
+async def _ReloadUid(app: Ariadne, sender: Friend, cmd: MessageChain = ResultValue(),
+                     uid: MessageChain = ResultValue()):
     if check_not_mysql_datasource():
         return
     uid = uid.display
-    logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {reload_uid[0]} {uid = }")
+    logger_prefix = get_logger_prefix(cmd.display, sender)
+    logger.info(f"{logger_prefix} {uid = }")
     if uid == "" or not uid.isdigit():
-        logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {delete_describe[0]} uid输入不合法({uid})")
+        logger.info(f"{logger_prefix} uid输入不合法({uid})")
         await app.send_message(sender, MessageChain(draw_pic(f"uid输入不合法({uid})，操作失败", width=800)))
         return
     uid = int(uid)
@@ -541,13 +549,13 @@ async def _ReloadUid(app: Ariadne, sender: Friend, uid: MessageChain = ResultVal
     obj_mysql = ObjMysql()
     result = await obj_mysql.check_uid_exist_with_all(uid)
     if not result:
-        logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {delete_describe[0]} uid未被订阅({uid = })")
+        logger.info(f"{logger_prefix} uid未被订阅({uid = })")
         await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
         return
     await obj_mysql.reload(uid)
     uname, _ = await select_uname_and_room_id(uid)
-    logger.info(f"群[{sender.nickname}]({sender.id}) 触发命令 : {add_logo[0]} 成功 {uname}({uid})")
-    await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){add_logo[0]}成功", width=800)))
+    logger.info(f"{logger_prefix} 成功 {uname}({uid})")
+    await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -556,38 +564,39 @@ async def _ReloadUid(app: Ariadne, sender: Friend, uid: MessageChain = ResultVal
         inline_dispatchers=[Twilight(
             ElementMatch(At, optional=True),
             FullMatch(prefix),
-            UnionMatch(*add_logo).space(SpacePolicy.FORCE),
+            "cmd" @ UnionMatch(*add_logo).space(SpacePolicy.FORCE),
             "uid" @ ParamMatch()
         )],
     )
 )
 async def _SetLogoGroup(app: Ariadne, sender: Group, member: Member, message: MessageChain,
-                        uid: MessageChain = ResultValue()):
+                        cmd: MessageChain = ResultValue(), uid: MessageChain = ResultValue()):
     if check_not_mysql_datasource():
         return
     if check_at_object(app.account, message) is False:
         return
     uid = uid.display
+    logger_prefix = get_logger_prefix(cmd.display, sender, member)
     if uid == "" or not uid.isdigit():
-        logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {add_logo[0]} uid输入不合法({uid})")
+        logger.info(f"{logger_prefix} uid输入不合法({uid})")
         await app.send_message(sender, MessageChain(draw_pic(f"uid输入不合法({uid})，操作失败", width=800)))
         return
     uid = int(uid)
     group = sender.id
     bot = app.account
-    logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {add_logo[0]} {uid = } {group = })")
+    logger.info(f"{logger_prefix} {uid = } {group = })")
 
     if master_qq == "" or f"{member.id}" != f"{master_qq}":
         person = await app.get_member(group, member.id)
         if person.permission < MemberPerm.Administrator:
             logger.info(
-                f"群[{sender.name}]({sender.id}) 触发命令 : {add_logo[0]} 权限不足({member.id = }, {person.permission = })")
+                f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
             await app.send_message(sender, MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
             return
     obj_mysql = ObjMysql()
     result = await obj_mysql.check_uid_exist(uid, group)
     if not result:
-        logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {add_logo[0]} uid未被订阅({uid = })")
+        logger.info(f"{logger_prefix} uid未被订阅({uid = })")
         await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
         return
     time_out = 60
@@ -602,12 +611,12 @@ async def _SetLogoGroup(app: Ariadne, sender: Group, member: Member, message: Me
         ret_msg = await inc.wait(words_waiter, timeout=time_out)  # 强烈建议设置超时时间否则将可能会永远等待
     except asyncio.TimeoutError:
         result = "超时自动取消"
-        logger.info(f"群[{sender.name}]({sender.id}) 命令: {add_logo[0]} 失败 原因：{result}")
+        logger.info(f"{logger_prefix} 失败 原因：{result}")
         await app.send_message(sender, MessageChain(result))
     else:
         if ret_msg.display == "取消":
             result = "操作已取消"
-            logger.info(f"群[{sender.name}]({sender.id}) 命令: {add_logo[0]} 失败 原因：{result}")
+            logger.info(f"{logger_prefix} 失败 原因：{result}")
             await app.send_message(sender, MessageChain(result))
             return
         image = None
@@ -618,7 +627,7 @@ async def _SetLogoGroup(app: Ariadne, sender: Group, member: Member, message: Me
                 image_count += 1
         if image is None or image_count > 1:
             result = "操作失败，请确认发送的图片数量为1"
-            logger.info(f"好友[{sender.name}]({sender.id}) 命令: {add_logo[0]} 失败 原因：{result}")
+            logger.info(f"{logger_prefix} 失败 原因：{result}")
             await app.send_message(sender, MessageChain(result))
             return
         await obj_mysql.init_target(bot, uid, group)
@@ -626,8 +635,8 @@ async def _SetLogoGroup(app: Ariadne, sender: Group, member: Member, message: Me
         obj_mysql.set_report_logo(logo_base64)
         await obj_mysql.save()
         uname, _ = obj_mysql.get_target_uname_and_roomid()
-        logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {add_logo[0]} 成功 {uname}({uid})")
-        await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){add_logo[0]}成功", width=800)))
+        logger.info(f"{logger_prefix} 成功 {uname}({uid})")
+        await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){cmd.display}成功", width=800)))
         await app.send_message(sender, MessageChain(draw_image_pic(logo_base64, "直播报告立绘")))
 
 
@@ -637,24 +646,25 @@ async def _SetLogoGroup(app: Ariadne, sender: Group, member: Member, message: Me
         inline_dispatchers=[Twilight(
             ElementMatch(At, optional=True),
             FullMatch(prefix),
-            UnionMatch(*add_logo).space(SpacePolicy.FORCE),
+            "cmd" @ UnionMatch(*add_logo).space(SpacePolicy.FORCE),
             "uid" @ ParamMatch(),
             "group" @ ArgumentMatch("-g", "--group", type=int, default=0, optional=True)
         )],
     )
 )
-async def _SetLogoFriend(app: Ariadne, sender: Friend, uid: MessageChain = ResultValue(),
-                         group: Optional[int] = ResultValue()):
+async def _SetLogoFriend(app: Ariadne, sender: Friend, cmd: MessageChain = ResultValue(),
+                         uid: MessageChain = ResultValue(), group: Optional[int] = ResultValue()):
     if check_not_mysql_datasource():
         return
     uid = uid.display
+    logger_prefix = get_logger_prefix(cmd.display, sender)
     if uid == "" or not uid.isdigit():
-        logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {add_logo[0]} uid输入不合法({uid})")
+        logger.info(f"{logger_prefix} uid输入不合法({uid})")
         await app.send_message(sender, MessageChain(draw_pic(f"uid输入不合法({uid})，操作失败", width=800)))
         return
     uid = int(uid)
     bot = app.account
-    logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {add_logo[0]} ({uid = }, {group = })")
+    logger.info(f"{logger_prefix} ({uid = }, {group = })")
 
     if group != 0:
         if master_qq == "" or master_qq != sender.id:
@@ -671,7 +681,7 @@ async def _SetLogoFriend(app: Ariadne, sender: Friend, uid: MessageChain = Resul
     obj_mysql = ObjMysql()
     result = await obj_mysql.check_uid_exist(uid, source, source_type)
     if not result:
-        logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {add_logo[0]} uid未被订阅({uid = })")
+        logger.info(f"{logger_prefix} uid未被订阅({uid = })")
         await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
         return
     time_out = 60
@@ -686,12 +696,12 @@ async def _SetLogoFriend(app: Ariadne, sender: Friend, uid: MessageChain = Resul
         ret_msg = await inc.wait(words_waiter, timeout=time_out)  # 强烈建议设置超时时间否则将可能会永远等待
     except asyncio.TimeoutError:
         result = "超时自动取消"
-        logger.info(f"好友[{sender.nickname}]({sender.id}) 命令: {add_logo[0]} 失败 原因：{result}")
+        logger.info(f"{logger_prefix} 失败 原因：{result}")
         await app.send_message(sender, MessageChain(result))
     else:
         if ret_msg.display == "取消":
             result = "操作已取消"
-            logger.info(f"好友[{sender.nickname}]({sender.id}) 命令: {add_logo[0]} 失败 原因：{result}")
+            logger.info(f"{logger_prefix} 失败 原因：{result}")
             await app.send_message(sender, MessageChain(result))
             return
         image = None
@@ -702,7 +712,7 @@ async def _SetLogoFriend(app: Ariadne, sender: Friend, uid: MessageChain = Resul
                 image_count += 1
         if image is None or image_count > 1:
             result = "操作失败，请确认发送的图片数量为1"
-            logger.info(f"好友[{sender.nickname}]({sender.id}) 命令: {add_logo[0]} 失败 原因：{result}")
+            logger.info(f"{logger_prefix}失败 原因：{result}")
             await app.send_message(sender, MessageChain(result))
             return
         await obj_mysql.init_target(bot, uid, source, source_type)
@@ -710,9 +720,8 @@ async def _SetLogoFriend(app: Ariadne, sender: Friend, uid: MessageChain = Resul
         obj_mysql.set_report_logo(logo_base64)
         await obj_mysql.save()
         uname, _ = obj_mysql.get_target_uname_and_roomid()
-        logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {add_logo[0]} 成功 {msg_prefix}[{uname}]({uid})")
-        await app.send_message(sender,
-                               MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){add_logo[0]}成功", width=800)))
+        logger.info(f"{logger_prefix} 成功 {msg_prefix}[{uname}]({uid})")
+        await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){cmd.display}成功", width=800)))
         await app.send_message(sender, MessageChain(draw_image_pic(logo_base64, "直播报告立绘")))
 
 
@@ -722,47 +731,48 @@ async def _SetLogoFriend(app: Ariadne, sender: Friend, uid: MessageChain = Resul
         inline_dispatchers=[Twilight(
             ElementMatch(At, optional=True),
             FullMatch(prefix),
-            UnionMatch(*clear_logo).space(SpacePolicy.FORCE),
+            "cmd" @ UnionMatch(*clear_logo).space(SpacePolicy.FORCE),
             "uid" @ ParamMatch()
         )],
     )
 )
 async def _ClearLogoGroup(app: Ariadne, sender: Group, member: Member, message: MessageChain,
-                          uid: MessageChain = ResultValue()):
+                          cmd: MessageChain = ResultValue(), uid: MessageChain = ResultValue()):
     if check_not_mysql_datasource():
         return
     if check_at_object(app.account, message) is False:
         return
     uid = uid.display
+    logger_prefix = get_logger_prefix(cmd.display, sender, member)
     if uid == "" or not uid.isdigit():
-        logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {clear_logo[0]} uid输入不合法({uid})")
+        logger.info(f"{logger_prefix} uid输入不合法({uid})")
         await app.send_message(sender, MessageChain(draw_pic(f"uid输入不合法({uid})，操作失败", width=800)))
         return
     uid = int(uid)
     group = sender.id
     bot = app.account
-    logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {clear_logo[0]} {uid = } {group = })")
+    logger.info(f"{logger_prefix} {uid = } {group = })")
 
     if master_qq == "" or f"{member.id}" != f"{master_qq}":
         person = await app.get_member(group, member.id)
         if person.permission < MemberPerm.Administrator:
             logger.info(
-                f"群[{sender.name}]({sender.id}) 触发命令 : {clear_logo[0]} 权限不足({member.id = }, {person.permission = })")
+                f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
             await app.send_message(sender,
                                    MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
             return
     obj_mysql = ObjMysql()
     result = await obj_mysql.check_uid_exist(uid, group)
     if not result:
-        logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {clear_logo[0]} uid未被订阅({uid = })")
+        logger.info(f"{logger_prefix} uid未被订阅({uid = })")
         await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
         return
     await obj_mysql.init_target(bot, uid, group)
     obj_mysql.clear_report_logo()
     await obj_mysql.save()
     uname, _ = obj_mysql.get_target_uname_and_roomid()
-    logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {clear_logo[0]} 成功{uname}({uid})")
-    await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){clear_logo[0]}成功", width=800)))
+    logger.info(f"{logger_prefix} 成功{uname}({uid})")
+    await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -771,24 +781,25 @@ async def _ClearLogoGroup(app: Ariadne, sender: Group, member: Member, message: 
         inline_dispatchers=[Twilight(
             ElementMatch(At, optional=True),
             FullMatch(prefix),
-            UnionMatch(*clear_logo).space(SpacePolicy.FORCE),
+            "cmd" @ UnionMatch(*clear_logo).space(SpacePolicy.FORCE),
             "uid" @ ParamMatch(),
             "group" @ ArgumentMatch("-g", "--group", type=int, default=0, optional=True)
         )],
     )
 )
-async def _ClearLogoFriend(app: Ariadne, sender: Friend, uid: MessageChain = ResultValue(),
-                           group: Optional[int] = ResultValue()):
+async def _ClearLogoFriend(app: Ariadne, sender: Friend, cmd: MessageChain = ResultValue(),
+                           uid: MessageChain = ResultValue(), group: Optional[int] = ResultValue()):
     if check_not_mysql_datasource():
         return
     uid = uid.display
+    logger_prefix = get_logger_prefix(cmd.display, sender)
     if uid == "" or not uid.isdigit():
-        logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {clear_logo[0]} uid输入不合法({uid})")
+        logger.info(f"{logger_prefix} uid输入不合法({uid})")
         await app.send_message(sender, MessageChain(draw_pic(f"uid输入不合法({uid})，操作失败", width=800)))
         return
     uid = int(uid)
     bot = app.account
-    logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {clear_logo[0]} ({uid = }, {group = })")
+    logger.info(f"{logger_prefix} ({uid = }, {group = })")
     if group != 0:
         if master_qq == "" or master_qq != sender.id:
             # 功能需要配置MASTER_QQ
@@ -803,15 +814,15 @@ async def _ClearLogoFriend(app: Ariadne, sender: Friend, uid: MessageChain = Res
     obj_mysql = ObjMysql()
     result = await obj_mysql.check_uid_exist(uid, source, source_type)
     if not result:
-        logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {clear_logo[0]} uid未被订阅({uid = })")
+        logger.info(f"{logger_prefix} uid未被订阅({uid = })")
         await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
         return
     await obj_mysql.init_target(bot, uid, source, source_type)
     obj_mysql.clear_report_logo()
     await obj_mysql.save()
     uname, _ = obj_mysql.get_target_uname_and_roomid()
-    logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {clear_logo[0]} 成功 {msg_prefix}[{uname}]({uid})")
-    await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){clear_logo[0]}成功", width=800)))
+    logger.info(f"{logger_prefix} 成功 {msg_prefix}[{uname}]({uid})")
+    await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -820,40 +831,42 @@ async def _ClearLogoFriend(app: Ariadne, sender: Friend, uid: MessageChain = Res
         inline_dispatchers=[Twilight(
             ElementMatch(At, optional=True),
             FullMatch(prefix),
-            UnionMatch(*set_message).space(SpacePolicy.FORCE),
+            "cmd" @ UnionMatch(*set_message).space(SpacePolicy.FORCE),
             "uid" @ ParamMatch(),
             "message_type" @ ArgumentMatch("-t", "--type", type=str, choices=["news", "live_on", "live_off"]),
         )],
     )
 )
 async def _SetMessageGroup(app: Ariadne, sender: Group, member: Member, message: MessageChain,
-                           uid: MessageChain = ResultValue(), message_type: Optional[str] = ResultValue()):
+                           cmd: MessageChain = ResultValue(), uid: MessageChain = ResultValue(),
+                           message_type: Optional[str] = ResultValue()):
     if check_not_mysql_datasource():
         return
     if check_at_object(app.account, message) is False:
         return
     uid = uid.display
+    logger_prefix = get_logger_prefix(cmd.display, sender, member)
     if uid == "" or not uid.isdigit():
-        logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {set_message[0]} uid输入不合法({uid})")
+        logger.info(f"{logger_prefix} uid输入不合法({uid})")
         await app.send_message(sender, MessageChain(draw_pic(f"uid输入不合法({uid})，操作失败", width=800)))
         return
     uid = int(uid)
     group = sender.id
     bot = app.account
-    logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {set_message[0]} {uid = } {group = } {message_type = })")
+    logger.info(f"{logger_prefix} {uid = } {group = } {message_type = })")
 
     if master_qq == "" or f"{member.id}" != f"{master_qq}":
         person = await app.get_member(group, member.id)
         if person.permission < MemberPerm.Administrator:
             logger.info(
-                f"群[{sender.name}]({sender.id}) 触发命令 : {set_message[0]} 权限不足({member.id = }, {person.permission = })")
+                f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
             await app.send_message(sender,
                                    MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
             return
     obj_mysql = ObjMysql()
     result = await obj_mysql.check_uid_exist(uid, group)
     if not result:
-        logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {set_message[0]} uid未被订阅({uid = })")
+        logger.info(f"{logger_prefix} uid未被订阅({uid = })")
         await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
         return
     timeout_s = 600
@@ -868,12 +881,12 @@ async def _SetMessageGroup(app: Ariadne, sender: Group, member: Member, message:
         ret_msg = await inc.wait(words_waiter, timeout=timeout_s)  # 强烈建议设置超时时间否则将可能会永远等待
     except asyncio.TimeoutError:
         result = "超时自动取消"
-        logger.info(f"群[{sender.name}]({sender.id}) 命令: {set_message[0]} 失败 原因：{result}")
+        logger.info(f"{logger_prefix} 失败 原因：{result}")
         await app.send_message(sender, MessageChain(result))
     else:
         if ret_msg.display == "取消":
             result = "操作已取消"
-            logger.info(f"群[{sender.name}]({sender.id}) 命令: {set_message[0]} 失败 原因：{result}")
+            logger.info(f"{logger_prefix} 失败 原因：{result}")
             await app.send_message(sender, MessageChain(result))
             return
         msg = ""
@@ -890,8 +903,8 @@ async def _SetMessageGroup(app: Ariadne, sender: Group, member: Member, message:
         obj_mysql.set_message_inner(message_type, msg)
         await obj_mysql.save()
         uname, _ = obj_mysql.get_target_uname_and_roomid()
-        logger.info(f"群[{sender.name}]({sender.id}) 触发命令 : {set_message[0]} 成功 {uname}({uid})")
-        await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){set_message[0]}成功", width=800)))
+        logger.info(f"{logger_prefix} 成功 {uname}({uid})")
+        await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -900,25 +913,27 @@ async def _SetMessageGroup(app: Ariadne, sender: Group, member: Member, message:
         inline_dispatchers=[Twilight(
             ElementMatch(At, optional=True),
             FullMatch(prefix),
-            UnionMatch(*set_message).space(SpacePolicy.FORCE),
+            "cmd" @ UnionMatch(*set_message).space(SpacePolicy.FORCE),
             "uid" @ ParamMatch(),
             "message_type" @ ArgumentMatch("-t", "--type", type=str, choices=["news", "live_on", "live_off"]),
             "group" @ ArgumentMatch("-g", "--group", type=int, default=0, optional=True)
         )],
     )
 )
-async def _SetMessageFriend(app: Ariadne, sender: Friend, uid: MessageChain = ResultValue(),
+async def _SetMessageFriend(app: Ariadne, sender: Friend, cmd: MessageChain = ResultValue(),
+                            uid: MessageChain = ResultValue(),
                             message_type: Optional[str] = ResultValue(), group: Optional[int] = ResultValue()):
     if check_not_mysql_datasource():
         return
     uid = uid.display
+    logger_prefix = get_logger_prefix(cmd.display, sender)
     if uid == "" or not uid.isdigit():
-        logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {set_message[0]} uid输入不合法({uid})")
+        logger.info(f"{logger_prefix} uid输入不合法({uid})")
         await app.send_message(sender, MessageChain(draw_pic(f"uid输入不合法({uid})，操作失败", width=800)))
         return
     uid = int(uid)
     bot = app.account
-    logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {set_message[0]} ({uid = }, {group = })")
+    logger.info(f"{logger_prefix} ({uid = }, {group = })")
 
     if group != 0:
         if master_qq == "" or master_qq != sender.id:
@@ -935,7 +950,7 @@ async def _SetMessageFriend(app: Ariadne, sender: Friend, uid: MessageChain = Re
     obj_mysql = ObjMysql()
     result = await obj_mysql.check_uid_exist(uid, source, source_type)
     if not result:
-        logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {set_message[0]} uid未被订阅({uid = })")
+        logger.info(f"{logger_prefix} uid未被订阅({uid = })")
         await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
         return
     timeout_s = 600
@@ -950,12 +965,12 @@ async def _SetMessageFriend(app: Ariadne, sender: Friend, uid: MessageChain = Re
         ret_msg = await inc.wait(words_waiter, timeout=timeout_s)  # 强烈建议设置超时时间否则将可能会永远等待
     except asyncio.TimeoutError:
         result = "超时自动取消"
-        logger.info(f"好友[{sender.nickname}]({sender.id}) 命令: {set_message[0]} 失败 原因：{result}")
+        logger.info(f"{logger_prefix} 失败 原因：{result}")
         await app.send_message(sender, MessageChain(result))
     else:
         if ret_msg.display == "取消":
             result = "操作已取消"
-            logger.info(f"好友[{sender.nickname}]({sender.id}) 命令: {set_message[0]} 失败 原因：{result}")
+            logger.info(f"{logger_prefix} 失败 原因：{result}")
             await app.send_message(sender, MessageChain(result))
             return
         msg = ""
@@ -968,10 +983,8 @@ async def _SetMessageFriend(app: Ariadne, sender: Friend, uid: MessageChain = Re
         obj_mysql.set_message_inner(message_type, msg)
         await obj_mysql.save()
         uname, _ = obj_mysql.get_target_uname_and_roomid()
-        logger.info(
-            f"好友[{sender.nickname}]({sender.id}) 触发命令 : {set_message[0]} 成功 {msg_prefix}[{uname}]({uid})")
-        await app.send_message(sender,
-                               MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){set_message[0]}成功", width=800)))
+        logger.info(f"{logger_prefix} 成功 {msg_prefix}[{uname}]({uid})")
+        await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -980,31 +993,33 @@ async def _SetMessageFriend(app: Ariadne, sender: Friend, uid: MessageChain = Re
         inline_dispatchers=[Twilight(
             ElementMatch(At, optional=True),
             FullMatch(prefix),
-            UnionMatch(*quit_group)
+            "cmd" @ UnionMatch(*quit_group)
         )],
     )
 )
-async def _QuitGroup(app: Ariadne, sender: Group, member: Member, message: MessageChain):
+async def _QuitGroup(app: Ariadne, sender: Group, member: Member, message: MessageChain,
+                     cmd: MessageChain = ResultValue()):
     if check_not_mysql_datasource():
         return
     if check_at_object(app.account, message) is False:
         return
     group = sender.id
     bot = app.account
-    logger.info(f"群[{sender.name}]({sender.id}) 成员[{member.name}]({member.id}) 触发命令 : {quit_group[0]}")
+    logger_prefix = get_logger_prefix(cmd.display, sender, member)
+    logger.info(f"{logger_prefix}")
 
     if master_qq == "" or f"{member.id}" != f"{master_qq}":
         person = await app.get_member(group, member.id)
         if person.permission < MemberPerm.Administrator:
             logger.info(
-                f"群[{sender.name}]({sender.id}) 触发命令 : {quit_group[0]} 权限不足({member.id = }, {person.permission = })")
+                f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
             await app.send_message(sender, MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
             return
-    await app.send_message(sender, MessageChain(draw_pic(f"{quit_group[0]}成功", width=800)))
+    await app.send_message(sender, MessageChain(draw_pic(f"{cmd.display}成功", width=800)))
     await app.quit_group(sender)
     obj_mysql = ObjMysql()
     await obj_mysql.clean_describe(bot, sender.id, PushType.Group)
-    logger.info(f"群[{sender.name}]({sender.id}) 成员[{member.name}]({member.id}) 触发命令 : {quit_group[0]} 成功")
+    logger.info(f"{logger_prefix} 成功")
 
 
 
@@ -1014,34 +1029,36 @@ async def _QuitGroup(app: Ariadne, sender: Group, member: Member, message: Messa
         inline_dispatchers=[Twilight(
             ElementMatch(At, optional=True),
             FullMatch(prefix),
-            UnionMatch(*quit_group).space(SpacePolicy.FORCE),
+            "cmd" @ UnionMatch(*quit_group).space(SpacePolicy.FORCE),
             "group_num" @ ParamMatch()
         )],
     )
 )
-async def _QuitGroupPrivate(app: Ariadne, sender: Friend, group_num: MessageChain = ResultValue()):
+async def _QuitGroupPrivate(app: Ariadne, sender: Friend, group_num: MessageChain = ResultValue(),
+                            cmd: MessageChain = ResultValue(),):
     if check_not_mysql_datasource():
         return
     if master_qq == "" or master_qq != sender.id:
         # 功能需要配置MASTER_QQ
         return
     group_num = group_num.display
+    logger_prefix = get_logger_prefix(cmd.display, sender)
     if group_num == "" or not group_num.isdigit():
-        logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {quit_group[0]} group_num输入不合法({group_num})")
+        logger.info(f"{logger_prefix} group_num输入不合法({group_num})")
         await app.send_message(sender, MessageChain(draw_pic(f"group_num输入不合法({group_num})，操作失败", width=800)))
         return
     group_num = int(group_num)
-    logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {quit_group[0]} ({group_num = })")
+    logger.info(f"{logger_prefix} ({group_num = })")
     group_check = await app.get_group(group_num)
     if group_check is None:
-        logger.warning(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {quit_group[0]} bot未加入群聊({group_num})")
+        logger.warning(f"{logger_prefix} bot未加入群聊({group_num})")
     else:
         await app.quit_group(group_num)
     bot = app.account
     obj_mysql = ObjMysql()
     await obj_mysql.clean_describe(bot, group_num, PushType.Group)
-    logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {quit_group[0]} 成功")
-    await app.send_message(sender, MessageChain(draw_pic(f"{quit_group[0]}成功", width=800)))
+    logger.info(f"{logger_prefix} 成功")
+    await app.send_message(sender, MessageChain(draw_pic(f"{cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -1050,17 +1067,18 @@ async def _QuitGroupPrivate(app: Ariadne, sender: Friend, group_num: MessageChai
         inline_dispatchers=[Twilight(
             ElementMatch(At, optional=True),
             FullMatch(prefix),
-            UnionMatch(*check_describe_abnormal)
+            "cmd" @ UnionMatch(*check_describe_abnormal)
         )],
     )
 )
-async def _CheckDescribeAbnormal(app: Ariadne, sender: Friend):
+async def _CheckDescribeAbnormal(app: Ariadne, sender: Friend, cmd: MessageChain = ResultValue()):
     if check_not_mysql_datasource():
         return
     if master_qq == "" or master_qq != sender.id:
         # 功能需要配置MASTER_QQ
         return
-    logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {check_describe_abnormal[0]}")
+    logger_prefix = get_logger_prefix(cmd.display, sender)
+    logger.info(f"{logger_prefix}")
     obj_mysql = ObjMysql()
     group_set, friend_set = obj_mysql.get_all_groups_and_friends()
     bot_group_list: List[Group] = await app.get_group_list()
@@ -1071,7 +1089,7 @@ async def _CheckDescribeAbnormal(app: Ariadne, sender: Friend):
     friend_abnormal_describe = friend_set - bot_friend_set
     if len(group_abnormal_describe) < 1 or len(friend_abnormal_describe) < 1:
         result = "无异常订阅"
-        logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {check_describe_abnormal[0]} 成功 \n{result}")
+        logger.info(f"{logger_prefix} 成功 \n{result}")
         image = draw_pic(result)
         await app.send_message(sender, MessageChain(image))
         return
@@ -1083,7 +1101,7 @@ async def _CheckDescribeAbnormal(app: Ariadne, sender: Friend):
         friend_abnormal = {"section": "异常订阅好友", "context": list(friend_abnormal_describe)}
         abnormal_list.append(friend_abnormal)
     result = f"异常订阅群号: {group_abnormal_describe}\n异常订阅好友: {friend_abnormal_describe}"
-    logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {check_describe_abnormal[0]} 成功 \n{result}")
+    logger.info(f"{logger_prefix} 成功 \n{result}")
     image = draw_pic(abnormal_list)
     await app.send_message(sender, MessageChain(image))
 
@@ -1094,17 +1112,18 @@ async def _CheckDescribeAbnormal(app: Ariadne, sender: Friend):
         inline_dispatchers=[Twilight(
             ElementMatch(At, optional=True),
             FullMatch(prefix),
-            UnionMatch(*clear_describe_abnormal)
+            "cmd" @ UnionMatch(*clear_describe_abnormal)
         )],
     )
 )
-async def _ClearDescribeAbnormal(app: Ariadne, sender: Friend):
+async def _ClearDescribeAbnormal(app: Ariadne, sender: Friend, cmd: MessageChain = ResultValue()):
     if check_not_mysql_datasource():
         return
     if master_qq == "" or master_qq != sender.id:
         # 功能需要配置MASTER_QQ
         return
-    logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {clear_describe_abnormal[0]}")
+    logger_prefix = get_logger_prefix(cmd.display, sender)
+    logger.info(f"{logger_prefix}")
     obj_mysql = ObjMysql()
     group_set, friend_set = obj_mysql.get_all_groups_and_friends()
     bot_group_list: List[Group] = await app.get_group_list()
@@ -1115,7 +1134,7 @@ async def _ClearDescribeAbnormal(app: Ariadne, sender: Friend):
     friend_abnormal_describe = friend_set - bot_friend_set
     if len(group_abnormal_describe) < 1 or len(friend_abnormal_describe) < 1:
         result = "无异常订阅"
-        logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {check_describe_abnormal[0]} 成功 \n{result}")
+        logger.info(f"{logger_prefix} 成功 \n{result}")
         image = draw_pic(result)
         await app.send_message(sender, MessageChain(image))
         return
@@ -1133,7 +1152,7 @@ async def _ClearDescribeAbnormal(app: Ariadne, sender: Friend):
         await obj_mysql.init_target(bot, up[0], up[1])
         await obj_mysql.delete()
     result = f"清除异常订阅群号: {group_abnormal_describe}\n清除异常订阅好友: {friend_abnormal_describe}"
-    logger.info(f"好友[{sender.nickname}]({sender.id}) 触发命令 : {check_describe_abnormal[0]} 成功 \n{result}")
+    logger.info(f"{logger_prefix} 成功 \n{result}")
     abnormal_list.append("清除异常订阅成功")
     image = draw_pic(abnormal_list)
     await app.send_message(sender, MessageChain(image))
@@ -1145,38 +1164,37 @@ async def _ClearDescribeAbnormal(app: Ariadne, sender: Friend):
         inline_dispatchers=[Twilight(
             ElementMatch(At, optional=True),
             FullMatch(prefix),
-            UnionMatch(*help_cmd)
+            "cmd" @ UnionMatch(*help_cmd)
         )],
     )
 )
-async def _MysqlHelp(app: Ariadne, sender: Union[Friend, Group], message: MessageChain):
+async def _MysqlHelp(app: Ariadne, sender: Union[Friend, Group], message: MessageChain,
+                     cmd: MessageChain = ResultValue()):
     if check_not_mysql_datasource():
         return
     if check_at_object(app.account, message) is False:
         return
+    logger_prefix = get_logger_prefix(cmd.display, sender)
     if isinstance(sender, Group):
-        log_type = "群"
         context_type = "describe_group"
         help_cmd_sub_title = "群聊命令帮助"
     else:
         if master_qq == sender.id:
-            log_type = "主人"
             context_type = "describe_admin"
             help_cmd_sub_title = "主人命令帮助"
         else:
-            log_type = "好友"
             context_type = "describe_friend"
             help_cmd_sub_title = "私聊命令帮助"
 
-    logger.info(f"{log_type}[{sender.id}] 触发命令 : {help_cmd[0]}")
+    logger.info(f"{logger_prefix}")
     pic_context = []
     for key, value in describe_cmd.items():
         # 组装绘图结构
         if len(value.get(context_type)) > 0:
-            cmd = {
+            cmd_inner = {
                 "section": key,
                 "context": value.get(context_type)
             }
-            pic_context.append(cmd)
-    image = draw_pic(pic_context, help_cmd[0], help_cmd_sub_title, width=1500)
+            pic_context.append(cmd_inner)
+    image = draw_pic(pic_context, cmd.display, help_cmd_sub_title, width=1500)
     await app.send_message(sender, MessageChain(image))

@@ -8,6 +8,7 @@ import base64
 from graia.ariadne import Ariadne
 from graia.ariadne.message.chain import MessageChain
 from graia.ariadne.message.element import Image, At, AtAll, Quote
+from graia.ariadne.model import Friend, Group, Member
 from starbot.core.datasource import MySQLDataSource
 from starbot.core.user import User, RelationType
 from starbot.core.room import Up
@@ -20,8 +21,9 @@ from starbot.painter.PicGenerator import PicGenerator, Color
 
 from loguru import logger
 
-_version = "v1.0.3"
+_version = "v1.0.4"
 
+master_qq = config.get("MASTER_QQ")
 
 def check_at_object(account: int, message: MessageChain):
     for element in message.content:
@@ -45,6 +47,24 @@ def check_mysql_datasource():
     if isinstance(Ariadne.options["StarBotDataSource"], MySQLDataSource):
         return True
     return False
+
+
+def get_logger_prefix(cmd, sender, member: Optional[Member] = None):
+    if isinstance(sender, Group):
+        if member is None:
+            return f"群[{sender.name}]({sender.id}) 命令({cmd})"
+        else:
+            if master_qq == member.id:
+                return f"群[{sender.name}]({sender.id})主人[{member.name}]({member.id}) 命令({cmd})"
+            else:
+                return f"群[{sender.name}]({sender.id})成员[{member.name}]({member.id}) 命令({cmd})"
+    elif isinstance(sender, Friend):
+        if master_qq == sender.id:
+            return f"主人[{sender.nickname}]({sender.id}) 命令({cmd})"
+        else:
+            return f"好友[{sender.nickname}]({sender.id}) 命令({cmd})"
+    # 不应该进入这个分支！
+    return f"未知身份 命令({cmd})"
 
 
 async def select_uname_and_room_id(uid):
@@ -102,8 +122,9 @@ def create_auto_follow_task():
             for i, u in enumerate(need_follow_uids):
                 follow_user = User(u, get_credential())
                 await follow_user.modify_relation(RelationType.SUBSCRIBE)
-                await asyncio.sleep(10)
                 logger.success(f"已关注: {i + 1} / {len(need_follow_uids)}")
+                if i + 1 < len(need_follow_uids):
+                    await asyncio.sleep(10)
             logger.success(f"已成功关注了 {len(need_follow_uids)} 个 UP 主")
         except ResponseCodeException as e:
             if e.code == 22115 or e.code == 22007:
@@ -1040,6 +1061,16 @@ class ObjMysql:
             self.sql_str.append(self.bot.mysql_delete_query())
             await self.query_batch(self.sql_str)
             await self.remove_up(uid)
+            uname, room_id = self.get_target_uname_and_roomid()
+            try:
+                unfollow_user = User(uid, get_credential())
+                await unfollow_user.modify_relation(RelationType.UNSUBSCRIBE)
+                logger.success(f"自动取消关注成功 {uname} (UID: {uid} 房间号: {room_id})")
+            except ResponseCodeException as e:
+                if e.code == 22115 or e.code == 22007:
+                    logger.warning(f"读取登录账号的关注列表失败, 请检查登录凭据是否已失效, 错误信息: {e.msg}")
+            except Exception as e:
+                logger.exception(f"取消关注异常 {uid = }\n", e)
         else:
             await self.query_batch(self.sql_str)
             await self.reload(uid)
