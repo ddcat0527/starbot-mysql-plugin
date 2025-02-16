@@ -233,13 +233,11 @@ async def _AddListenGroup(app: Ariadne, sender: Group, member: Member, message: 
     uid = int(uid)
     group = sender.id
     bot = app.account
-    logger.info(
-        f"{logger_prefix} ({uid = }, {group = }, {type = }, {atall = }, {report = })")
+    logger.info(f"{logger_prefix} ({uid = }, {group = }, {type = }, {atall = }, {report = })")
     if master_qq == "" or f"{member.id}" != f"{master_qq}":
         person = await app.get_member(group, member.id)
         if person.permission < MemberPerm.Administrator:
-            logger.info(
-                f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
+            logger.info(f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
             await app.send_message(sender, MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
             return
     obj_mysql = ObjMysql()
@@ -348,8 +346,7 @@ async def _DelListenGroup(app: Ariadne, sender: Group, member: Member, message: 
     if master_qq == "" or f"{member.id}" != f"{master_qq}":
         person = await app.get_member(group, member.id)
         if person.permission < MemberPerm.Administrator:
-            logger.info(
-                f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
+            logger.info(f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
             await app.send_message(sender, MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
             return
     obj_mysql = ObjMysql()
@@ -412,8 +409,7 @@ async def _DelListenFriend(app: Ariadne, sender: Friend, cmd: MessageChain = Res
     await obj_mysql.init_target(bot, uid, source, source_type)
     await obj_mysql.delete()
     uname, _ = obj_mysql.get_target_uname_and_roomid()
-    logger.info(
-        f"{logger_prefix} 成功 {msg_prefix}[{uname}]({uid})")
+    logger.info(f"{logger_prefix} 成功 {msg_prefix}[{uname}]({uid})")
     await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){cmd.display}成功", width=800)))
 
 
@@ -438,6 +434,7 @@ async def _TransToMysql(app: Ariadne, sender: Friend, cmd: MessageChain = Result
     result, message = await datasource_trans_to_mysql()
     if not result:
         await app.send_message(sender, MessageChain(draw_pic(f"{cmd.display} 失败，原因：{message}")))
+        return
     await app.send_message(sender, MessageChain(draw_pic(f"{cmd.display} 成功", width=800)))
 
 
@@ -589,8 +586,7 @@ async def _SetLogoGroup(app: Ariadne, sender: Group, member: Member, message: Me
     if master_qq == "" or f"{member.id}" != f"{master_qq}":
         person = await app.get_member(group, member.id)
         if person.permission < MemberPerm.Administrator:
-            logger.info(
-                f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
+            logger.info(f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
             await app.send_message(sender, MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
             return
     obj_mysql = ObjMysql()
@@ -756,10 +752,8 @@ async def _ClearLogoGroup(app: Ariadne, sender: Group, member: Member, message: 
     if master_qq == "" or f"{member.id}" != f"{master_qq}":
         person = await app.get_member(group, member.id)
         if person.permission < MemberPerm.Administrator:
-            logger.info(
-                f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
-            await app.send_message(sender,
-                                   MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
+            logger.info(f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
+            await app.send_message(sender, MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
             return
     obj_mysql = ObjMysql()
     result = await obj_mysql.check_uid_exist(uid, group)
@@ -858,8 +852,7 @@ async def _SetMessageGroup(app: Ariadne, sender: Group, member: Member, message:
     if master_qq == "" or f"{member.id}" != f"{master_qq}":
         person = await app.get_member(group, member.id)
         if person.permission < MemberPerm.Administrator:
-            logger.info(
-                f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
+            logger.info(f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
             await app.send_message(sender,
                                    MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
             return
@@ -1011,8 +1004,7 @@ async def _QuitGroup(app: Ariadne, sender: Group, member: Member, message: Messa
     if master_qq == "" or f"{member.id}" != f"{master_qq}":
         person = await app.get_member(group, member.id)
         if person.permission < MemberPerm.Administrator:
-            logger.info(
-                f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
+            logger.info(f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
             await app.send_message(sender, MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
             return
     await app.send_message(sender, MessageChain(draw_pic(f"{cmd.display}成功", width=800)))
