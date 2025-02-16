@@ -232,9 +232,9 @@ class DynamicMysql:
     id: str = ""
     uid: int = 0
     enabled: bool = False
-    message: str = "{uname} {action}\n{url}\n{picture}"
-    _message_atall: str = "{atall}\n{uname} {action}\n{url}\n{picture}"
-    _message_default: str = "{uname} {action}\n{url}\n{picture}"
+    message: str = "{uname} {action}\n{url}{next}{picture}"
+    _message_atall: str = "{atall}\n{uname} {action}\n{url}{next}{picture}"
+    _message_default: str = "{uname} {action}\n{url}{next}{picture}"
 
     mysql_name = "dynamic_update"
 
@@ -294,7 +294,7 @@ class LiveOffMysql():
     id: str = ""
     uid: int = 0
     enabled: bool = False
-    message: str = "{uname} 直播结束了"
+    message: str = "主播先下班啦，回见宝子们！！！"
 
     mysql_name = "live_off"
 
@@ -348,9 +348,9 @@ class LiveOnMysql:
     id: str = ""
     uid: int = 0
     enabled: bool = False
-    message: str = "{uname} 正在直播 {title}\n{url}\n{cover}"
-    _message_atall: str = "{atall}\n{uname} 正在直播 {title}\n{url}\n{cover}"
-    _message_default: str = "{uname} 正在直播 {title}\n{url}\n{cover}"
+    message: str = "{title}\n{url}{next}{cover}{next}宝子们，上钟！！！"
+    _message_atall: str = "{atall}\n{title}\n{url}{next}{cover}{next}宝子们，上钟！！！"
+    _message_default: str = "{title}\n{url}{next}{cover}{next}上钟！！！"
 
     mysql_name = "live_on"
 
