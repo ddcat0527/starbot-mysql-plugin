@@ -1,4 +1,5 @@
 import asyncio
+import re
 from typing import List, Optional, Union
 from creart import create
 from graia.ariadne import Ariadne
@@ -467,9 +468,10 @@ async def _GetUpList(app: Ariadne, sender: Group, message: MessageChain, cmd: Me
     result = obj_mysql.get_ups_by_target_with_pic_struct(group, PushType.Group, width=width)
     if not result:
         result = ["未查询到订阅"]
-    logger.info(f"{logger_prefix} 成功 \n{result}")
+    cleaned_result = re.sub(r'[ \t]+', ' ', "\n".join(result))
+    logger.info(f"{logger_prefix} 成功 \n{cleaned_result}")
     if text_mode:
-        res = "\n".join(result)
+        res = cleaned_result
     else:
         res = draw_pic(result, width=width)
     await app.send_message(sender, MessageChain(res))
@@ -500,19 +502,20 @@ async def _GetUpListAll(app: Ariadne, sender: Friend, cmd: MessageChain = Result
     width = 1200
     if master_qq == "" or master_qq != sender.id:
         result = obj_mysql.get_ups_by_target_with_pic_struct(sender.id, PushType.Friend, width=width)
+        cleaned_result = re.sub(r'[ \t]+', ' ', "\n".join(result))
     else:
         result = obj_mysql.get_up_list_with_pic_struct(width=width)
         res_temp = []
-        if text_mode:
-            for result_inner in result:
-                res_temp.append("#" + result_inner.get("section"))
-                res_temp.append(" ".join(result_inner.get("context")))
-            result = res_temp
+        for result_inner in result:
+            res_temp.append("#" + result_inner.get("section"))
+            res_temp.append(re.sub(r'[ \t]+', ' ', "\n".join(result_inner.get("context"))))
+        cleaned_result = "\n".join(res_temp)
     if not result:
         result = ["未查询到订阅"]
-    logger.info(f"{logger_prefix} 成功 \n{result}")
+        cleaned_result = "未查询到订阅"
+    logger.info(f"{logger_prefix} 成功 \n{cleaned_result}")
     if text_mode:
-        res = "\n".join(result)
+        res = cleaned_result
     else:
         res = draw_pic(result, width=width)
     await app.send_message(sender, MessageChain(res))

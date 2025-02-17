@@ -1,6 +1,7 @@
 # starbot-mysql-plugins
 
 #### 介绍
+
 starbot自定义命令包，包含如下功能
 
 1. 递归加载plugins下的所有文件，报错则打印日志并跳过
@@ -47,7 +48,12 @@ starbot自定义命令包，包含如下功能
 1. 代码格式优化
 2. 修正数据源转换错误导致失败时消息回复的一个bug
 
+2025年2月18日：
+1. 优化查询订阅功能在text mode和日志打印下没有去除多余空格和指标符导致的格式混乱和不对齐问题
+2. 由于不影响正常功能使用，版本号不更新
+
 #### 软件架构
+
 通过plugins目录下的__init__.py使用require导入内部所有插件包
 
 #### 安装教程
@@ -56,13 +62,16 @@ starbot自定义命令包，包含如下功能
 
 功能依赖MASTER_QQ配置项，需要添加config.set("MASTER_QQ", qq号)，例如config.set("MASTER_QQ", 123456)
 
-部分功能需要starbot启用mysql数据源而并非使用json数据源，需要配置对应config.set("MYSQL_HOST", "mysqladdr") config.set("MYSQL_USERNAME", "username") config.set("MYSQL_PASSWORD", "password"),并且通过datasource = MySQLDataSource()启用mysql数据源 _[而不要使用datasource = JsonDataSource("推送配置.json")]_ 
+部分功能需要starbot启用mysql数据源而并非使用json数据源，需要配置对应config.set("MYSQL_HOST", "mysqladdr") config.set("MYSQL_USERNAME", "username") config.set("MYSQL_PASSWORD", "password"),并且通过datasource = MySQLDataSource()启用mysql数据源
+ _[而不要使用datasource = JsonDataSource("推送配置.json")]_ 
 
 数据源转储功能仅当非mysql数据源生效，仍需要配置对应config.set("MYSQL_HOST", "mysqladdr") config.set("MYSQL_USERNAME", "username") 以写入mysql数据库
 
 根目录__init__.py递归加载全部不为_开头的文件夹及内部.py文件，只需要放置相应插件即可被导入
 
 #### 使用说明
+
+命令包提供了启动starbot的main.py的demo文件
 
 可以新增插件，放入plugins文件夹中并重启starbot，即可被自动导入
 
