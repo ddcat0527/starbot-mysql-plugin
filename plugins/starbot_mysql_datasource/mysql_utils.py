@@ -21,9 +21,10 @@ from starbot.painter.PicGenerator import PicGenerator, Color
 
 from loguru import logger
 
-_version = "v1.0.4"
+_version = "v1.0.5"
 
 master_qq = config.get("MASTER_QQ")
+
 
 def check_at_object(account: int, message: MessageChain):
     for element in message.content:
@@ -233,7 +234,7 @@ class DynamicMysql:
     uid: int = 0
     enabled: bool = False
     message: str = "{uname} {action}\n{url}\n{picture}"
-    _message_atall: str = "{atall}\n{uname} {action}\n{url}\n{picture}"
+    _message_atall: str = "{atall}{uname} {action}\n{url}\n{picture}"
     _message_default: str = "{uname} {action}\n{url}\n{picture}"
 
     mysql_name = "dynamic_update"
@@ -349,7 +350,7 @@ class LiveOnMysql:
     uid: int = 0
     enabled: bool = False
     message: str = "{uname} 正在直播 {title}\n{url}\n{cover}"
-    _message_atall: str = "{atall}\n{uname} 正在直播 {title}\n{url}\n{cover}"
+    _message_atall: str = "{atall}{uname} 正在直播 {title}\n{url}\n{cover}"
     _message_default: str = "{uname} 正在直播 {title}\n{url}\n{cover}"
 
     mysql_name = "live_on"
@@ -412,28 +413,28 @@ class ReportMysql:
     enabled: bool = False
     logo: str = ""
     logo_base64: str = ""
-    time: bool = False
-    fans_change: bool = False
-    fans_medal_change: bool = False
-    guard_change: bool = False
-    danmu: bool = False
-    box: bool = False
-    gift: bool = False
-    sc: bool = False
-    guard: bool = False
-    danmu_ranking: int = 0
-    box_ranking: int = 0
-    box_profit_ranking: int = 0
-    gift_ranking: int = 0
-    sc_ranking: int = 0
-    guard_list: bool = False
-    box_profit_diagram: bool = False
-    danmu_diagram: bool = False
-    box_diagram: bool = False
-    gift_diagram: bool = False
-    sc_diagram: bool = False
-    guard_diagram: bool = False
-    danmu_cloud: bool = False
+    time: bool = False  # 直播时长
+    fans_change: bool = False  # 粉丝变动
+    fans_medal_change: bool = False  # 粉丝勋章变动
+    guard_change: bool = False  # 大航海变动
+    danmu: bool = False  # 弹幕数据
+    box: bool = False  # 盲盒数据
+    gift: bool = False  # 礼物数据
+    sc: bool = False  # SC数据
+    guard: bool = False  # 大航海数据
+    danmu_ranking: int = 0  # 弹幕榜
+    box_ranking: int = 0  # 盲盒榜
+    box_profit_ranking: int = 0  # 盲盒盈亏榜
+    gift_ranking: int = 0  # 礼物榜
+    sc_ranking: int = 0  # SC 榜
+    guard_list: bool = False  # 开通大航海名单
+    box_profit_diagram: bool = False  # 盲盒盈亏折线图
+    danmu_diagram: bool = False  # 弹幕互动曲线图
+    box_diagram: bool = False  # 盲盒互动曲线图
+    gift_diagram: bool = False  # 礼物互动曲线图
+    sc_diagram: bool = False  # SC 互动曲线图
+    guard_diagram: bool = False  # 大航海互动曲线图
+    danmu_cloud: bool = False  # 弹幕词云
 
     mysql_name = "live_report"
 
@@ -585,6 +586,75 @@ class ReportMysql:
         self.sc_diagram = True
         self.guard_diagram = True
         self.danmu_cloud = True
+
+    def config(self, input_arg: str, input_str: str):
+        input_str = input_str.lower()
+        if input_str == "on" or input_str == "enable" or input_str == "true" or input_str == "开启":
+            input_type = bool
+            value = True
+        elif input_str == "off" or input_str == "disable" or input_str == "false" or input_str == "关闭":
+            input_type = bool
+            value = False
+        elif input_str.isdigit() and 0 <= int(input_str) <= 10:
+            input_type = int
+            value = int(input_str)
+        else:
+            input_type = None
+            return False
+        conf_dict = {
+            "time": lambda v=value: (setattr(self, 'time', v) or True) if input_type is bool else False,
+            "直播时长": lambda v=value: (setattr(self, 'time', v) or True) if input_type is bool else False,
+            "fans_change": lambda v=value: (setattr(self, 'fans_change', v) or True) if input_type is bool else False,
+            "粉丝变动": lambda v=value: (setattr(self, 'fans_change', v) or True) if input_type is bool else False,
+            "fans_medal_change": lambda v=value: (setattr(self, 'fans_medal_change', v) or True) if input_type is bool else False,
+            "粉丝勋章变动": lambda v=value: (setattr(self, 'fans_medal_change', v) or True) if input_type is bool else False,
+            "guard_change": lambda v=value: (setattr(self, 'guard_change', v) or True) if input_type is bool else False,
+            "大航海变动": lambda v=value: (setattr(self, 'guard_change', v) or True) if input_type is bool else False,
+            "danmu": lambda v=value: (setattr(self, 'danmu', v) or True) if input_type is bool else False,
+            "弹幕数据": lambda v=value: (setattr(self, 'danmu', v) or True) if input_type is bool else False,
+            "box": lambda v=value: (setattr(self, 'box', v) or True) if input_type is bool else False,
+            "盲盒数据": lambda v=value: (setattr(self, 'box', v) or True) if input_type is bool else False,
+            "gift": lambda v=value: (setattr(self, 'gift', v) or True) if input_type is bool else False,
+            "礼物数据": lambda v=value: (setattr(self, 'gift', v) or True) if input_type is bool else False,
+            "sc": lambda v=value: (setattr(self, 'sc', v) or True) if input_type is bool else False,
+            "sc数据": lambda v=value: (setattr(self, 'sc', v) or True) if input_type is bool else False,
+            "SC数据": lambda v=value: (setattr(self, 'sc', v) or True) if input_type is bool else False,
+            "SC 数据": lambda v=value: (setattr(self, 'sc', v) or True) if input_type is bool else False,
+            "guard": lambda v=value: (setattr(self, 'guard', v) or True) if input_type is bool else False,
+            "大航海数据": lambda v=value: (setattr(self, 'guard', v) or True) if input_type is bool else False,
+            "danmu_ranking": lambda v=value: (setattr(self, 'danmu_ranking', v) or True) if input_type is int else False,
+            "弹幕榜": lambda v=value: (setattr(self, 'danmu_ranking', v) or True) if input_type is int else False,
+            "box_ranking": lambda v=value: (setattr(self, 'box_ranking', v) or True) if input_type is int else False,
+            "盲盒榜": lambda v=value: (setattr(self, 'box_ranking', v) or True) if input_type is int else False,
+            "box_profit_ranking": lambda v=value: (setattr(self, 'box_profit_ranking', v) or True) if input_type is int else False,
+            "盲盒盈亏榜": lambda v=value: (setattr(self, 'box_profit_ranking', v) or True) if input_type is int else False,
+            "gift_ranking": lambda v=value: (setattr(self, 'gift_ranking', v) or True) if input_type is int else False,
+            "礼物榜": lambda v=value: (setattr(self, 'gift_ranking', v) or True) if input_type is int else False,
+            "sc_ranking": lambda v=value: (setattr(self, 'sc_ranking', v) or True) if input_type is int else False,
+            "sc榜": lambda v=value: (setattr(self, 'sc_ranking', v) or True) if input_type is int else False,
+            "SC榜": lambda v=value: (setattr(self, 'sc_ranking', v) or True) if input_type is int else False,
+            "guard_list": lambda v=value: (setattr(self, 'guard_list', v) or True) if input_type is bool else False,
+            "开通大航海名单": lambda v=value: (setattr(self, 'guard_list', v) or True) if input_type is bool else False,
+            "box_profit_diagram": lambda v=value: (setattr(self, 'box_profit_diagram', v) or True) if input_type is bool else False,
+            "盲盒盈亏折线图": lambda v=value: (setattr(self, 'box_profit_diagram', v) or True) if input_type is bool else False,
+            "danmu_diagram": lambda v=value: (setattr(self, 'danmu_diagram', v) or True) if input_type is bool else False,
+            "弹幕互动曲线图": lambda v=value: (setattr(self, 'danmu_diagram', v) or True) if input_type is bool else False,
+            "box_diagram": lambda v=value: (setattr(self, 'box_diagram', v) or True) if input_type is bool else False,
+            "盲盒互动曲线图": lambda v=value: (setattr(self, 'box_diagram', v) or True) if input_type is bool else False,
+            "gift_diagram": lambda v=value: (setattr(self, 'gift_diagram', v) or True) if input_type is bool else False,
+            "礼物互动曲线图": lambda v=value: (setattr(self, 'gift_diagram', v) or True) if input_type is bool else False,
+            "sc_diagram": lambda v=value: (setattr(self, 'sc_diagram', v) or True) if input_type is bool else False,
+            "sc互动曲线图": lambda v=value: (setattr(self, 'sc_diagram', v) or True) if input_type is bool else False,
+            "SC互动曲线图": lambda v=value: (setattr(self, 'sc_diagram', v) or True) if input_type is bool else False,
+            "SC 互动曲线图": lambda v=value: (setattr(self, 'sc_diagram', v) or True) if input_type is bool else False,
+            "guard_diagram": lambda v=value: (setattr(self, 'guard_diagram', v) or True) if input_type is bool else False,
+            "大航海互动曲线图": lambda v=value: (setattr(self, 'guard_diagram', v) or True) if input_type is bool else False,
+            "danmu_cloud": lambda v=value: (setattr(self, 'danmu_cloud', v) or True) if input_type is bool else False,
+            "弹幕词云": lambda v=value: (setattr(self, 'danmu_cloud', v) or True) if input_type is bool else False,
+        }
+        func = conf_dict.get(input_arg, lambda v=value: False)
+        return func()
+
 
     def mysql_insert_query(self) -> str:
         return str(
@@ -917,6 +987,9 @@ class ObjMysql:
 
     def clear_report_logo(self):
         self.report.clear_logo()
+
+    def config_report(self, input_arg: str, input_str: str):
+        return self.report.config(input_arg, input_str)
 
     async def query_targets(self):
         target = await self.query(self.target.mysql_get_by_uid_and_num_query())

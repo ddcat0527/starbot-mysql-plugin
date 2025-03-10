@@ -36,6 +36,7 @@ reload_uid = ["重载订阅", "reloaduid"]
 add_logo = ["设置立绘", "setlogo"]
 clear_logo = ["清除立绘", "clearlogo"]
 set_message = ["设置推送信息", "设置推送消息", "setmessage"]
+set_report = ["设置推送报告", "setreport"]
 quit_group = ["退出群聊", "退群", "quit"]
 check_describe_abnormal = ["检测异常订阅", "checkabnormal"]
 clear_describe_abnormal = ["清除异常订阅", "clearabnormal"]
@@ -52,6 +53,7 @@ describe_cmd = {
                            "可选参数：[-r | --report] [time | danmu | all] 直播报告内容[直播时长(默认)，直播时长和弹幕云词，全部信息]",
                            "注意：uid若已在本群订阅，则本次添加视为更新配置",
                            "为防止被滥用，该命令需要群管理员及以上权限可用",
+                           "at全体受官方限制每日次数有限，请尽量减少开启该选项，如出现受限情况，请联系bot主人确认该情况",
                            f"示例: {prefix}{add_describe[0]} 123456",
                            f"示例: {prefix}{add_describe[0]} 123456 -t all -a no -r time"],
         "describe_friend": [f"{prefix}[{' | '.join(add_describe)}] uid",
@@ -66,6 +68,7 @@ describe_cmd = {
                            "可选参数：[-a | --atall] [news | live | all | no] at全体[动态，开播，动态和开播，无(默认)]，对群监听有效",
                            "可选参数：[-r | --report] [time | danmu | all] 直播报告内容[直播时长(默认)，直播时长和弹幕云词，全部信息]",
                            "注意：uid若已被私聊订阅，则本次添加视为更新配置",
+                           "at全体受官方限制每日次数有限，请尽量减少开启该选项，如出现受限情况，请联系bot主人确认该情况",
                            f"示例: {prefix}{add_describe[0]} 123456 -g 456789",
                            f"示例: {prefix}{add_describe[0]} 123456 -g 456789 -t all -a no -r time"]
     },
@@ -158,6 +161,26 @@ describe_cmd = {
                            "设置动态提醒，开播提醒和下播提醒",
                            "注意：uid需要被订阅才能成功",
                            f"示例: {prefix}{set_message[0]} -g 456789 uid -t live_on"]
+    },
+    set_report[0]: {
+        "cmd": set_report,
+        "describe_group": [f"{prefix}[{' | '.join(set_report)}] uid configuration value",
+                           "设置直播报告参数",
+                           "注意：uid需要在该群被订阅才能成功",
+                           "为防止被滥用，该命令需要群管理员及以上权限可用",
+                           f"示例: {prefix}{set_report[0]} uid 弹幕数据 关闭",
+                           f"示例: {prefix}{set_report[0]} uid 盲盒榜 3"],
+        "describe_friend": [f"{prefix}[{' | '.join(set_report)}] uid configuration value",
+                            "设置直播报告参数",
+                            "注意：uid需要被订阅才能成功",
+                            f"示例: {prefix}{set_report[0]} uid 弹幕数据 关闭",
+                            f"示例: {prefix}{set_report[0]} uid 盲盒榜 3"],
+        "describe_admin": [f"{prefix}[{' | '.join(set_report)}] uid configuration value",
+                           "可选参数：[-g | --group] [group_num] 订阅所在群号",
+                           "设置直播报告参数",
+                           "注意：uid需要被订阅才能成功",
+                           f"示例: {prefix}{set_report[0]} uid 弹幕数据 关闭",
+                           f"示例: {prefix}{set_report[0]} uid 盲盒榜 3 -g 123456"]
     },
     quit_group[0]: {
         "cmd": quit_group,
@@ -981,6 +1004,124 @@ async def _SetMessageFriend(app: Ariadne, sender: Friend, cmd: MessageChain = Re
         uname, _ = obj_mysql.get_target_uname_and_roomid()
         logger.info(f"{logger_prefix} 成功 {msg_prefix}[{uname}]({uid})")
         await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){cmd.display}成功", width=800)))
+
+
+@channel.use(
+    ListenerSchema(
+        listening_events=[GroupMessage],
+        inline_dispatchers=[Twilight(
+            ElementMatch(At, optional=True),
+            FullMatch(prefix),
+            "cmd" @ UnionMatch(*set_report).space(SpacePolicy.FORCE),
+            "uid" @ ParamMatch().space(SpacePolicy.FORCE),
+            "configuration" @ ParamMatch().space(SpacePolicy.FORCE),
+            "value" @ ParamMatch(),
+        )],
+    )
+)
+async def _SetReportGroup(app: Ariadne, sender: Group, member: Member, message: MessageChain,
+                          cmd: MessageChain = ResultValue(), uid: MessageChain = ResultValue(),
+                          configuration: MessageChain = ResultValue(), value: MessageChain = ResultValue()):
+    if check_not_mysql_datasource():
+        return
+    if check_at_object(app.account, message) is False:
+        return
+    uid = uid.display
+    logger_prefix = get_logger_prefix(cmd.display, sender, member)
+    if uid == "" or not uid.isdigit():
+        logger.info(f"{logger_prefix} uid输入不合法({uid})")
+        await app.send_message(sender, MessageChain(draw_pic(f"uid输入不合法({uid})，操作失败", width=800)))
+        return
+    uid = int(uid)
+    group = sender.id
+    bot = app.account
+    configuration = configuration.display
+    value = value.display
+    logger.info(f"{logger_prefix} ({uid = }, {group = }, {configuration = }, {value = })")
+
+    if master_qq == "" or f"{member.id}" != f"{master_qq}":
+        person = await app.get_member(group, member.id)
+        if person.permission < MemberPerm.Administrator:
+            logger.info(f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
+            await app.send_message(sender, MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
+            return
+    obj_mysql = ObjMysql()
+    result = await obj_mysql.check_uid_exist(uid, group)
+    if not result:
+        logger.info(f"{logger_prefix} uid未被订阅({uid = })")
+        await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
+        return
+    await obj_mysql.init_target(bot, uid, group)
+    res = obj_mysql.config_report(configuration, value)
+    uname, _ = obj_mysql.get_target_uname_and_roomid()
+    if not res:
+        logger.info(f"{logger_prefix} 失败[{uname}]({uid})")
+        await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){cmd.display}失败，请检查参数是否正确", width=1000)))
+        return
+    await obj_mysql.save()
+    logger.info(f"{logger_prefix} 成功[{uname}]({uid})")
+    await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){cmd.display}成功", width=800)))
+
+
+@channel.use(
+    ListenerSchema(
+        listening_events=[FriendMessage],
+        inline_dispatchers=[Twilight(
+            ElementMatch(At, optional=True),
+            FullMatch(prefix),
+            "cmd" @ UnionMatch(*set_report).space(SpacePolicy.FORCE),
+            "uid" @ ParamMatch().space(SpacePolicy.FORCE),
+            "configuration" @ ParamMatch().space(SpacePolicy.FORCE),
+            "value" @ ParamMatch(),
+            "group" @ ArgumentMatch("-g", "--group", type=int, default=0, optional=True)
+        )],
+    )
+)
+async def _SetReportFriend(app: Ariadne, sender: Friend, cmd: MessageChain = ResultValue(),
+                           uid: MessageChain = ResultValue(), configuration: MessageChain = ResultValue(),
+                           value: MessageChain = ResultValue(), group: Optional[int] = ResultValue()):
+    if check_not_mysql_datasource():
+        return
+    uid = uid.display
+    logger_prefix = get_logger_prefix(cmd.display, sender)
+    if uid == "" or not uid.isdigit():
+        logger.info(f"{logger_prefix} uid输入不合法({uid})")
+        await app.send_message(sender, MessageChain(draw_pic(f"uid输入不合法({uid})，操作失败", width=800)))
+        return
+    uid = int(uid)
+    configuration = configuration.display
+    value = value.display
+    bot = app.account
+    logger.info(f"{logger_prefix} ({uid = }, {group = }, {configuration = }, {value = })")
+
+    if group != 0:
+        if master_qq == "" or master_qq != sender.id:
+            # 功能需要配置MASTER_QQ
+            return
+        source = group
+        source_type = PushType.Group
+        msg_prefix = f"群聊{group} "
+    else:
+        source = sender.id
+        source_type = PushType.Friend
+        msg_prefix = ""
+
+    obj_mysql = ObjMysql()
+    result = await obj_mysql.check_uid_exist(uid, source, source_type)
+    if not result:
+        logger.info(f"{logger_prefix} uid未被订阅({uid = })")
+        await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
+        return
+    await obj_mysql.init_target(bot, uid, source, source_type)
+    res = obj_mysql.config_report(configuration, value)
+    uname, _ = obj_mysql.get_target_uname_and_roomid()
+    if not res:
+        logger.info(f"{logger_prefix} 失败[{uname}]({uid})")
+        await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){cmd.display}失败，请检查参数是否正确", width=1000)))
+        return
+    await obj_mysql.save()
+    logger.info(f"{logger_prefix} 成功 {msg_prefix}[{uname}]({uid})")
+    await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
