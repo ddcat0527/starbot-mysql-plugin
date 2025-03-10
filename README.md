@@ -83,6 +83,10 @@ starbot自定义命令包，包含如下功能
 
 mysql默认数据库为starbot，内部表结构自行执行starbot.sql生成
 
+当前存在一个问题场景：使用mysql数据源启动starbot，但是mysql数据库没有数据的情况下，starbot无法启动
+解决方案：填写mysql信息后使用json数据源启动，调用插件数据源转换功能写入mysql，然后切换为mysql数据源重启即可启动
+问题根因：starbot自身逻辑不接受空mysql表启动，即订阅信息为空的状态无法启动starbot，因此需要先进行订阅信息的写入才能正常启动
+
 以下命令自行增加config配置的命令前缀
 
 帮助： 订阅帮助
