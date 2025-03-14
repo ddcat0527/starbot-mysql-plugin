@@ -103,11 +103,11 @@ mysql默认数据库为starbot，内部表结构自行执行starbot.sql生成
 
 
 群聊命令示例：
-![d05bf22643eadab4f946ed918429e24a_720](https://github.com/user-attachments/assets/334938a5-bd2f-4640-a46a-4428322b5059)
+![7fcb26a74e879eedbef030d0a388c31b](https://github.com/user-attachments/assets/42cf1be6-72c0-4ed5-94b7-4ae260bc200b)
 
 
 私聊命令示例：
-![23f96861c0b397cb7955b5d2d3257b31_720](https://github.com/user-attachments/assets/b3f618f5-cba2-48bf-bcdf-2c6413376220)
+![d05bf22643eadab4f946ed918429e24a](https://github.com/user-attachments/assets/5c5c13a7-b7e2-4104-8777-2a6176b6effc)
 
 
 加好友自动同意并发送指引：
