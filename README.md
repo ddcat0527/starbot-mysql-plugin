@@ -99,11 +99,11 @@ mysql默认数据库为starbot，内部表结构自行执行starbot.sql生成
 
 
 主人命令示例：
-![5cc31543a624c7440342b9aa2b9fb6f9](https://github.com/user-attachments/assets/58dacea6-f7b1-45ef-aaeb-0e204a9716c3)
+![8f574628c9db248eef35c74c5179b48b](https://github.com/user-attachments/assets/02493a41-6544-4b9a-a304-23a229c168f2)
 
 
 群聊命令示例：
-![79137602d6f3ecfc1df14a7f02c9abda_720](https://github.com/user-attachments/assets/bc9d34e0-8925-4a40-b20f-55fc36b2349a)
+![d05bf22643eadab4f946ed918429e24a_720](https://github.com/user-attachments/assets/334938a5-bd2f-4640-a46a-4428322b5059)
 
 
 私聊命令示例：
