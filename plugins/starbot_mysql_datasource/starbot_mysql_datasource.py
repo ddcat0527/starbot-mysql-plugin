@@ -44,6 +44,7 @@ trans_to_mysql = ["数据源转储", "datasourcetrans"]
 
 help_cmd = ["订阅帮助"]
 
+# 由于Twilight自带的help生成器无法满足使用，例如无法分离管理员帮助和普通的私聊帮助，只能自定义help内容
 describe_cmd = {
     add_describe[0]: {
         "cmd": add_describe,
@@ -86,19 +87,19 @@ describe_cmd = {
     list_describe[0]: {
         "cmd": list_describe,
         "describe_group": [f"{prefix}[{' | '.join(list_describe)}]",
-                           "可选参数：[-t | --text] [true | false] 是否使用文字模式发送[是，否(默认)]",
+                           "可选参数：[-t | --text] 使用文字模式发送",
                            f"示例: {prefix}{list_describe[0]}",
-                           f"示例: {prefix}{list_describe[0]} -t true"],
+                           f"示例: {prefix}{list_describe[0]} -t"],
         "describe_friend": [f"{prefix}[{' | '.join(list_describe)}]",
-                            "可选参数：[-t | --text] [true | false] 是否使用文字模式发送[是，否(默认)]",
+                            "可选参数：[-t | --text] 使用文字模式发送",
                             "查询私聊订阅信息",
                             f"示例: {prefix}{list_describe[0]}",
-                            f"示例: {prefix}{list_describe[0]} -t true"],
+                            f"示例: {prefix}{list_describe[0]} -t"],
         "describe_admin": [f"{prefix}[{' | '.join(list_describe)}]",
-                           "可选参数：[-t | --text] [true | false] 是否使用文字模式发送[是，否(默认)]",
+                           "可选参数：[-t | --text] 使用文字模式发送",
                            "查询所有订阅信息",
                            f"示例: {prefix}{list_describe[0]}",
-                           f"示例: {prefix}{list_describe[0]} -t true"],
+                           f"示例: {prefix}{list_describe[0]} -t"],
     },
     reload_uid[0]: {
         "cmd": reload_uid,
@@ -262,7 +263,8 @@ async def _AddListenGroup(app: Ariadne, sender: Group, member: Member, message: 
         person = await app.get_member(group, member.id)
         if person.permission < MemberPerm.Administrator:
             logger.info(f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
-            await app.send_message(sender, MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
+            await app.send_message(sender,
+                                   MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
             return
     obj_mysql = ObjMysql()
     await obj_mysql.init_target(bot, uid, group)
@@ -336,7 +338,8 @@ async def _AddListenFriend(app: Ariadne, sender: Friend, cmd: MessageChain = Res
     uname, _ = obj_mysql.get_target_uname_and_roomid()
     create_auto_follow_task()
     logger.info(f"{logger_prefix} 成功 {msg_prefix}[{uname}]({uid})")
-    await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}(UID:{uid}){cmd.display}成功", width=800)))
+    await app.send_message(sender,
+                           MessageChain(draw_pic(f"{msg_prefix}{uname}(UID:{uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -371,7 +374,8 @@ async def _DelListenGroup(app: Ariadne, sender: Group, member: Member, message: 
         person = await app.get_member(group, member.id)
         if person.permission < MemberPerm.Administrator:
             logger.info(f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
-            await app.send_message(sender, MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
+            await app.send_message(sender,
+                                   MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
             return
     obj_mysql = ObjMysql()
     result = await obj_mysql.check_uid_exist(uid, group)
@@ -469,20 +473,16 @@ async def _TransToMysql(app: Ariadne, sender: Friend, cmd: MessageChain = Result
             ElementMatch(At, optional=True),
             FullMatch(prefix),
             "cmd" @ UnionMatch(*list_describe),
-            "text" @ ArgumentMatch("-t", "--text", type=str, choices=["true", "false"], default="false", optional=True),
+            "text" @ ArgumentMatch("-t", "--text", action="store_true", default=False),
         )],
     )
 )
 async def _GetUpList(app: Ariadne, sender: Group, message: MessageChain, cmd: MessageChain = ResultValue(),
-                     text: Optional[str] = ResultValue()):
+                     text: bool = ResultValue()):
     if check_not_mysql_datasource():
         return
     if check_at_object(app.account, message) is False:
         return
-    if text == "false":
-        text_mode = False
-    else:
-        text_mode = True
     logger_prefix = get_logger_prefix(cmd.display, sender)
     logger.info(f"{logger_prefix} {text = }")
     group = sender.id
@@ -493,7 +493,7 @@ async def _GetUpList(app: Ariadne, sender: Group, message: MessageChain, cmd: Me
         result = ["未查询到订阅"]
     cleaned_result = re.sub(r'[ \t]+', ' ', "\n".join(result))
     logger.info(f"{logger_prefix} 成功 \n{cleaned_result}")
-    if text_mode:
+    if text:
         res = cleaned_result
     else:
         res = draw_pic(result, width=width)
@@ -507,18 +507,14 @@ async def _GetUpList(app: Ariadne, sender: Group, message: MessageChain, cmd: Me
             ElementMatch(At, optional=True),
             FullMatch(prefix),
             "cmd" @ UnionMatch(*list_describe),
-            "text" @ ArgumentMatch("-t", "--text", type=str, choices=["true", "false"], default="false", optional=True),
+            "text" @ ArgumentMatch("-t", "--text", action="store_true", default=False),
         )],
     )
 )
 async def _GetUpListAll(app: Ariadne, sender: Friend, cmd: MessageChain = ResultValue(),
-                        text: Optional[str] = ResultValue()):
+                        text: bool = ResultValue()):
     if check_not_mysql_datasource():
         return
-    if text == "false":
-        text_mode = False
-    else:
-        text_mode = True
     logger_prefix = get_logger_prefix(cmd.display, sender)
     logger.info(f"{logger_prefix} {text = }")
     obj_mysql = ObjMysql()
@@ -537,7 +533,7 @@ async def _GetUpListAll(app: Ariadne, sender: Friend, cmd: MessageChain = Result
         result = ["未查询到订阅"]
         cleaned_result = "未查询到订阅"
     logger.info(f"{logger_prefix} 成功 \n{cleaned_result}")
-    if text_mode:
+    if text:
         res = cleaned_result
     else:
         res = draw_pic(result, width=width)
@@ -613,7 +609,8 @@ async def _SetLogoGroup(app: Ariadne, sender: Group, member: Member, message: Me
         person = await app.get_member(group, member.id)
         if person.permission < MemberPerm.Administrator:
             logger.info(f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
-            await app.send_message(sender, MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
+            await app.send_message(sender,
+                                   MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
             return
     obj_mysql = ObjMysql()
     result = await obj_mysql.check_uid_exist(uid, group)
@@ -743,7 +740,8 @@ async def _SetLogoFriend(app: Ariadne, sender: Friend, cmd: MessageChain = Resul
         await obj_mysql.save()
         uname, _ = obj_mysql.get_target_uname_and_roomid()
         logger.info(f"{logger_prefix} 成功 {msg_prefix}[{uname}]({uid})")
-        await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){cmd.display}成功", width=800)))
+        await app.send_message(sender,
+                               MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){cmd.display}成功", width=800)))
         await app.send_message(sender, MessageChain(draw_image_pic(logo_base64, "直播报告立绘")))
 
 
@@ -779,7 +777,8 @@ async def _ClearLogoGroup(app: Ariadne, sender: Group, member: Member, message: 
         person = await app.get_member(group, member.id)
         if person.permission < MemberPerm.Administrator:
             logger.info(f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
-            await app.send_message(sender, MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
+            await app.send_message(sender,
+                                   MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
             return
     obj_mysql = ObjMysql()
     result = await obj_mysql.check_uid_exist(uid, group)
@@ -889,7 +888,8 @@ async def _SetMessageGroup(app: Ariadne, sender: Group, member: Member, message:
         await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
         return
     timeout_s = 600
-    await app.send_message(sender, MessageChain(get_message_help(message_type) + f"\nat元素和图片能够被正确识别\n请在{timeout_s}秒内发送内容\n发送 取消 则操作取消，无事发生"))
+    await app.send_message(sender, MessageChain(get_message_help(
+        message_type) + f"\nat元素和图片能够被正确识别\n请在{timeout_s}秒内发送内容\n发送 取消 则操作取消，无事发生"))
 
     @Waiter.create_using_function([GroupMessage])
     async def words_waiter(s: Group, m: Member, waiter_msg: MessageChain):
@@ -973,7 +973,8 @@ async def _SetMessageFriend(app: Ariadne, sender: Friend, cmd: MessageChain = Re
         await app.send_message(sender, MessageChain(draw_pic("uid未被订阅，操作失败", width=800)))
         return
     timeout_s = 600
-    await app.send_message(sender, MessageChain(get_message_help(message_type) + f"\n图片能够被正确识别\n请在{timeout_s}秒内发送内容\n发送 取消 则操作取消，无事发生"))
+    await app.send_message(sender, MessageChain(get_message_help(
+        message_type) + f"\n图片能够被正确识别\n请在{timeout_s}秒内发送内容\n发送 取消 则操作取消，无事发生"))
 
     @Waiter.create_using_function([FriendMessage])
     async def words_waiter(s: Friend, waiter_msg: MessageChain):
@@ -1003,7 +1004,8 @@ async def _SetMessageFriend(app: Ariadne, sender: Friend, cmd: MessageChain = Re
         await obj_mysql.save()
         uname, _ = obj_mysql.get_target_uname_and_roomid()
         logger.info(f"{logger_prefix} 成功 {msg_prefix}[{uname}]({uid})")
-        await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){cmd.display}成功", width=800)))
+        await app.send_message(sender,
+                               MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -1043,7 +1045,8 @@ async def _SetReportGroup(app: Ariadne, sender: Group, member: Member, message: 
         person = await app.get_member(group, member.id)
         if person.permission < MemberPerm.Administrator:
             logger.info(f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
-            await app.send_message(sender, MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
+            await app.send_message(sender,
+                                   MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
             return
     obj_mysql = ObjMysql()
     result = await obj_mysql.check_uid_exist(uid, group)
@@ -1056,7 +1059,8 @@ async def _SetReportGroup(app: Ariadne, sender: Group, member: Member, message: 
     uname, _ = obj_mysql.get_target_uname_and_roomid()
     if not res:
         logger.info(f"{logger_prefix} 失败[{uname}]({uid})")
-        await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){cmd.display}失败，请检查参数是否正确", width=1000)))
+        await app.send_message(sender, MessageChain(
+            draw_pic(f"{uname}({uid}){cmd.display}失败，请检查参数是否正确", width=1000)))
         return
     await obj_mysql.save()
     logger.info(f"{logger_prefix} 成功[{uname}]({uid})")
@@ -1117,7 +1121,8 @@ async def _SetReportFriend(app: Ariadne, sender: Friend, cmd: MessageChain = Res
     uname, _ = obj_mysql.get_target_uname_and_roomid()
     if not res:
         logger.info(f"{logger_prefix} 失败[{uname}]({uid})")
-        await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){cmd.display}失败，请检查参数是否正确", width=1000)))
+        await app.send_message(sender, MessageChain(
+            draw_pic(f"{msg_prefix}{uname}({uid}){cmd.display}失败，请检查参数是否正确", width=1000)))
         return
     await obj_mysql.save()
     logger.info(f"{logger_prefix} 成功 {msg_prefix}[{uname}]({uid})")
@@ -1149,14 +1154,14 @@ async def _QuitGroup(app: Ariadne, sender: Group, member: Member, message: Messa
         person = await app.get_member(group, member.id)
         if person.permission < MemberPerm.Administrator:
             logger.info(f"{logger_prefix} 权限不足({member.id = }, {person.permission = })")
-            await app.send_message(sender, MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
+            await app.send_message(sender,
+                                   MessageChain(draw_pic("权限不足，操作失败，仅群管理员和群主可操作", width=800)))
             return
     await app.send_message(sender, MessageChain(draw_pic(f"{cmd.display}成功", width=800)))
     await app.quit_group(sender)
     obj_mysql = ObjMysql()
     await obj_mysql.clean_describe(bot, sender.id, PushType.Group)
     logger.info(f"{logger_prefix} 成功")
-
 
 
 @channel.use(
@@ -1171,7 +1176,7 @@ async def _QuitGroup(app: Ariadne, sender: Group, member: Member, message: Messa
     )
 )
 async def _QuitGroupPrivate(app: Ariadne, sender: Friend, group_num: MessageChain = ResultValue(),
-                            cmd: MessageChain = ResultValue(),):
+                            cmd: MessageChain = ResultValue()):
     if check_not_mysql_datasource():
         return
     if master_qq == "" or master_qq != sender.id:

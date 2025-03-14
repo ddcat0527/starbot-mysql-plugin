@@ -21,7 +21,7 @@ from starbot.painter.PicGenerator import PicGenerator, Color
 
 from loguru import logger
 
-_version = "v1.0.5"
+_version = "v1.0.6"
 
 master_qq = config.get("MASTER_QQ")
 
@@ -606,8 +606,10 @@ class ReportMysql:
             "直播时长": lambda v=value: (setattr(self, 'time', v) or True) if input_type is bool else False,
             "fans_change": lambda v=value: (setattr(self, 'fans_change', v) or True) if input_type is bool else False,
             "粉丝变动": lambda v=value: (setattr(self, 'fans_change', v) or True) if input_type is bool else False,
-            "fans_medal_change": lambda v=value: (setattr(self, 'fans_medal_change', v) or True) if input_type is bool else False,
-            "粉丝勋章变动": lambda v=value: (setattr(self, 'fans_medal_change', v) or True) if input_type is bool else False,
+            "fans_medal_change": lambda v=value: (
+                        setattr(self, 'fans_medal_change', v) or True) if input_type is bool else False,
+            "粉丝勋章变动": lambda v=value: (
+                        setattr(self, 'fans_medal_change', v) or True) if input_type is bool else False,
             "guard_change": lambda v=value: (setattr(self, 'guard_change', v) or True) if input_type is bool else False,
             "大航海变动": lambda v=value: (setattr(self, 'guard_change', v) or True) if input_type is bool else False,
             "danmu": lambda v=value: (setattr(self, 'danmu', v) or True) if input_type is bool else False,
@@ -622,12 +624,15 @@ class ReportMysql:
             "SC 数据": lambda v=value: (setattr(self, 'sc', v) or True) if input_type is bool else False,
             "guard": lambda v=value: (setattr(self, 'guard', v) or True) if input_type is bool else False,
             "大航海数据": lambda v=value: (setattr(self, 'guard', v) or True) if input_type is bool else False,
-            "danmu_ranking": lambda v=value: (setattr(self, 'danmu_ranking', v) or True) if input_type is int else False,
+            "danmu_ranking": lambda v=value: (
+                        setattr(self, 'danmu_ranking', v) or True) if input_type is int else False,
             "弹幕榜": lambda v=value: (setattr(self, 'danmu_ranking', v) or True) if input_type is int else False,
             "box_ranking": lambda v=value: (setattr(self, 'box_ranking', v) or True) if input_type is int else False,
             "盲盒榜": lambda v=value: (setattr(self, 'box_ranking', v) or True) if input_type is int else False,
-            "box_profit_ranking": lambda v=value: (setattr(self, 'box_profit_ranking', v) or True) if input_type is int else False,
-            "盲盒盈亏榜": lambda v=value: (setattr(self, 'box_profit_ranking', v) or True) if input_type is int else False,
+            "box_profit_ranking": lambda v=value: (
+                        setattr(self, 'box_profit_ranking', v) or True) if input_type is int else False,
+            "盲盒盈亏榜": lambda v=value: (
+                        setattr(self, 'box_profit_ranking', v) or True) if input_type is int else False,
             "gift_ranking": lambda v=value: (setattr(self, 'gift_ranking', v) or True) if input_type is int else False,
             "礼物榜": lambda v=value: (setattr(self, 'gift_ranking', v) or True) if input_type is int else False,
             "sc_ranking": lambda v=value: (setattr(self, 'sc_ranking', v) or True) if input_type is int else False,
@@ -635,26 +640,33 @@ class ReportMysql:
             "SC榜": lambda v=value: (setattr(self, 'sc_ranking', v) or True) if input_type is int else False,
             "guard_list": lambda v=value: (setattr(self, 'guard_list', v) or True) if input_type is bool else False,
             "开通大航海名单": lambda v=value: (setattr(self, 'guard_list', v) or True) if input_type is bool else False,
-            "box_profit_diagram": lambda v=value: (setattr(self, 'box_profit_diagram', v) or True) if input_type is bool else False,
-            "盲盒盈亏折线图": lambda v=value: (setattr(self, 'box_profit_diagram', v) or True) if input_type is bool else False,
-            "danmu_diagram": lambda v=value: (setattr(self, 'danmu_diagram', v) or True) if input_type is bool else False,
-            "弹幕互动曲线图": lambda v=value: (setattr(self, 'danmu_diagram', v) or True) if input_type is bool else False,
+            "box_profit_diagram": lambda v=value: (
+                        setattr(self, 'box_profit_diagram', v) or True) if input_type is bool else False,
+            "盲盒盈亏折线图": lambda v=value: (
+                        setattr(self, 'box_profit_diagram', v) or True) if input_type is bool else False,
+            "danmu_diagram": lambda v=value: (
+                        setattr(self, 'danmu_diagram', v) or True) if input_type is bool else False,
+            "弹幕互动曲线图": lambda v=value: (
+                        setattr(self, 'danmu_diagram', v) or True) if input_type is bool else False,
             "box_diagram": lambda v=value: (setattr(self, 'box_diagram', v) or True) if input_type is bool else False,
-            "盲盒互动曲线图": lambda v=value: (setattr(self, 'box_diagram', v) or True) if input_type is bool else False,
+            "盲盒互动曲线图": lambda v=value: (
+                        setattr(self, 'box_diagram', v) or True) if input_type is bool else False,
             "gift_diagram": lambda v=value: (setattr(self, 'gift_diagram', v) or True) if input_type is bool else False,
-            "礼物互动曲线图": lambda v=value: (setattr(self, 'gift_diagram', v) or True) if input_type is bool else False,
+            "礼物互动曲线图": lambda v=value: (
+                        setattr(self, 'gift_diagram', v) or True) if input_type is bool else False,
             "sc_diagram": lambda v=value: (setattr(self, 'sc_diagram', v) or True) if input_type is bool else False,
             "sc互动曲线图": lambda v=value: (setattr(self, 'sc_diagram', v) or True) if input_type is bool else False,
             "SC互动曲线图": lambda v=value: (setattr(self, 'sc_diagram', v) or True) if input_type is bool else False,
             "SC 互动曲线图": lambda v=value: (setattr(self, 'sc_diagram', v) or True) if input_type is bool else False,
-            "guard_diagram": lambda v=value: (setattr(self, 'guard_diagram', v) or True) if input_type is bool else False,
-            "大航海互动曲线图": lambda v=value: (setattr(self, 'guard_diagram', v) or True) if input_type is bool else False,
+            "guard_diagram": lambda v=value: (
+                        setattr(self, 'guard_diagram', v) or True) if input_type is bool else False,
+            "大航海互动曲线图": lambda v=value: (
+                        setattr(self, 'guard_diagram', v) or True) if input_type is bool else False,
             "danmu_cloud": lambda v=value: (setattr(self, 'danmu_cloud', v) or True) if input_type is bool else False,
             "弹幕词云": lambda v=value: (setattr(self, 'danmu_cloud', v) or True) if input_type is bool else False,
         }
         func = conf_dict.get(input_arg, lambda v=value: False)
         return func()
-
 
     def mysql_insert_query(self) -> str:
         return str(
