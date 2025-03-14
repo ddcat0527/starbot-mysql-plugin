@@ -804,6 +804,11 @@ class ObjMysql:
         up = self.get_up_by_uid(uid)
         if up is None:
             raise DataSourceException(f"不存在的 UID: {uid}")
+        # 强制刷新内存中uname以解决内存中昵称不会同步更新的问题
+        if self.target is not None:
+            up.uname, _ = self.target.get_uname_and_room_id()
+        else:
+            up.uname, _ = await select_uname_and_room_id(uid)
         await self.datasource.reload_targets(up)
 
     async def remove_up(self, uid):
