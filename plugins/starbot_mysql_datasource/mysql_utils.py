@@ -13,7 +13,7 @@ from starbot.core.datasource import MySQLDataSource
 from starbot.core.user import User, RelationType
 from starbot.core.room import Up
 from starbot.core.model import PushType
-from starbot.utils import config
+from starbot.utils import config, redis
 from starbot.utils.network import request
 from starbot.utils.utils import get_credential
 from starbot.exception import ResponseCodeException, DataSourceException
@@ -21,7 +21,7 @@ from starbot.painter.PicGenerator import PicGenerator, Color
 
 from loguru import logger
 
-_version = "v1.0.6"
+_version = "v1.0.7"
 
 master_qq = config.get("MASTER_QQ")
 
@@ -840,29 +840,29 @@ class ObjMysql:
         ups: List[Up] = self.datasource.get_ups_by_target(num, push_type)
         return ups
 
-    def get_up_list_with_pic_struct(self, width=1000) -> List:
+    async def get_up_list_with_pic_struct(self) -> List:
         ups: List[Up] = self.datasource.get_up_list()
         up_list = []
         target_map = {}
-        type_length = 21
-        real_width = int(width / 15)
         for up in ups:
             for target in up.targets:
                 push_target = f"{'群' if target.type == PushType.Group else '好友'}({target.id})"
                 if not target_map.get(push_target):
                     target_map[push_target] = []
                 push_type = []
+                living_flag = False
                 if target.dynamic_update.enabled:
                     push_type.append("news")
                 if target.live_on.enabled:
                     push_type.append("live_on")
+                    if await redis.get_live_status(up.room_id) == 1:
+                        living_flag = True
                 if target.live_off.enabled:
                     push_type.append("live_off")
-                uname_uid = f"{up.uname}(UID:{up.uid})"
-                uname_uid_str = f"{uname_uid:<{int(real_width / 2)}}" + "\t"
-                push_type_str = f"{'/'.join(push_type):<{type_length}}"
-                target_map[push_target].append(
-                    uname_uid_str + push_type_str.rjust(real_width - len(uname_uid_str), ' '))
+                uname_uid = f"{up.uname} {up.uid} {'/'.join(push_type)}"
+                if living_flag:
+                    uname_uid = uname_uid + " ※直播中※"
+                target_map[push_target].append(uname_uid)
         for t, u in target_map.items():
             up_target = {"section": t, "context": []}
             for target in u:
@@ -870,26 +870,27 @@ class ObjMysql:
             up_list.append(up_target)
         return up_list
 
-    def get_ups_by_target_with_pic_struct(self, num: int, type: PushType = PushType.Group, width=1000) -> List:
-        ups: List[Up] = self.datasource.get_ups_by_target(num, type)
+    async def get_ups_by_target_with_pic_struct(self, num: int, p_type: PushType = PushType.Group) -> List:
+        ups: List[Up] = self.datasource.get_ups_by_target(num, p_type)
         up_list = []
-        type_length = 21
-        real_width = int(width / 15)
         for up in ups:
             push_type = []
+            living_flag = False
             for target in up.targets:
-                if target.id == num and target.type == type:
+                if target.id == num and target.type == p_type:
                     if target.dynamic_update.enabled:
                         push_type.append("news")
                     if target.live_on.enabled:
                         push_type.append("live_on")
+                        if await redis.get_live_status(up.room_id) == 1:
+                            living_flag = True
                     if target.live_off.enabled:
                         push_type.append("live_off")
                     break
-            uname_uid = f"{up.uname}(UID:{up.uid})"
-            uname_uid_str = f"{uname_uid:<{int(real_width / 2)}}" + "\t"
-            push_type_str = f"{'/'.join(push_type):<{type_length}}"
-            up_list.append(uname_uid_str + push_type_str.rjust(real_width - len(uname_uid_str), ' '))
+            uname_uid = f"{up.uname} {up.uid} {'/'.join(push_type)}"
+            if living_flag:
+                uname_uid = uname_uid + " ※直播中※"
+            up_list.append(uname_uid)
         return up_list
 
     def get_ups_by_targets(self, friend_set: set, group_set: set) -> List:

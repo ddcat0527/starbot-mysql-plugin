@@ -387,7 +387,7 @@ async def _DelListenGroup(app: Ariadne, sender: Group, member: Member, message: 
     await obj_mysql.delete()
     uname, _ = obj_mysql.get_target_uname_and_roomid()
     logger.info(f"{logger_prefix} 成功{uname}({uid})")
-    await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){cmd.display}成功", width=800)))
+    await app.send_message(sender, MessageChain(draw_pic(f"{uname}(UID:{uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -438,7 +438,7 @@ async def _DelListenFriend(app: Ariadne, sender: Friend, cmd: MessageChain = Res
     await obj_mysql.delete()
     uname, _ = obj_mysql.get_target_uname_and_roomid()
     logger.info(f"{logger_prefix} 成功 {msg_prefix}[{uname}]({uid})")
-    await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){cmd.display}成功", width=800)))
+    await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}(UID:{uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -487,17 +487,27 @@ async def _GetUpList(app: Ariadne, sender: Group, message: MessageChain, cmd: Me
     logger.info(f"{logger_prefix} {text = }")
     group = sender.id
     obj_mysql = ObjMysql()
-    width = 1200
-    result = obj_mysql.get_ups_by_target_with_pic_struct(group, PushType.Group, width=width)
+    result = await obj_mysql.get_ups_by_target_with_pic_struct(group, PushType.Group)
     if not result:
         result = ["未查询到订阅"]
-    cleaned_result = re.sub(r'[ \t]+', ' ', "\n".join(result))
+    cleaned_result = "\n".join(result)
     logger.info(f"{logger_prefix} 成功 \n{cleaned_result}")
-    if text:
-        res = cleaned_result
-    else:
-        res = draw_pic(result, width=width)
-    await app.send_message(sender, MessageChain(res))
+    row_cont = cleaned_result.count("\n") + 1
+    str_cont = len(cleaned_result)
+    row_split = 120
+    logger.info(f"{logger_prefix} 成功 \n{cleaned_result}")
+    if not text:
+        await app.send_message(sender, MessageChain(draw_pic(result, width=1000)))
+        return
+    if str_cont > 4000 or row_cont > row_split:
+        # 超长了，需要分段
+        logger.info(f"{logger_prefix} {cmd.display}结果超长，分段发送")
+        split_str = cleaned_result.split("\n")
+        split_list = [split_str[i:i + row_split] for i in range(0, len(split_str), row_split)]
+        for res in split_list:
+            await app.send_message(sender, MessageChain("\n".join(res)))
+        return
+    await app.send_message(sender, MessageChain(cleaned_result))
 
 
 @channel.use(
@@ -518,26 +528,36 @@ async def _GetUpListAll(app: Ariadne, sender: Friend, cmd: MessageChain = Result
     logger_prefix = get_logger_prefix(cmd.display, sender)
     logger.info(f"{logger_prefix} {text = }")
     obj_mysql = ObjMysql()
-    width = 1200
     if master_qq == "" or master_qq != sender.id:
-        result = obj_mysql.get_ups_by_target_with_pic_struct(sender.id, PushType.Friend, width=width)
-        cleaned_result = re.sub(r'[ \t]+', ' ', "\n".join(result))
+        result = await obj_mysql.get_ups_by_target_with_pic_struct(sender.id, PushType.Friend)
+        cleaned_result = "\n".join(result)
     else:
-        result = obj_mysql.get_up_list_with_pic_struct(width=width)
+        result = await obj_mysql.get_up_list_with_pic_struct()
         res_temp = []
         for result_inner in result:
             res_temp.append("#" + result_inner.get("section"))
-            res_temp.append(re.sub(r'[ \t]+', ' ', "\n".join(result_inner.get("context"))))
+            res_temp.append("\n".join(result_inner.get("context")))
         cleaned_result = "\n".join(res_temp)
     if not result:
         result = ["未查询到订阅"]
         cleaned_result = "未查询到订阅"
+    row_cont = cleaned_result.count("\n") + 1
+    str_cont = len(cleaned_result)
+    row_split = 120
     logger.info(f"{logger_prefix} 成功 \n{cleaned_result}")
-    if text:
-        res = cleaned_result
-    else:
-        res = draw_pic(result, width=width)
-    await app.send_message(sender, MessageChain(res))
+    if not text:
+        await app.send_message(sender, MessageChain(draw_pic(result, width=1000)))
+        return
+    if str_cont > 4000 or row_cont > row_split:
+        # 超长了，需要分段
+        logger.info(f"{logger_prefix} {cmd.display}结果超长，分段发送")
+        split_str = cleaned_result.split("\n")
+        split_list = [split_str[i:i + row_split] for i in range(0, len(split_str), row_split)]
+        for res in split_list:
+            await app.send_message(sender, MessageChain("\n".join(res)))
+        return
+    await app.send_message(sender, MessageChain(cleaned_result))
+
 
 
 @channel.use(
@@ -574,7 +594,7 @@ async def _ReloadUid(app: Ariadne, sender: Friend, cmd: MessageChain = ResultVal
     await obj_mysql.reload(uid)
     uname, _ = await select_uname_and_room_id(uid)
     logger.info(f"{logger_prefix} 成功 {uname}({uid})")
-    await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){cmd.display}成功", width=800)))
+    await app.send_message(sender, MessageChain(draw_pic(f"{uname}(UID:{uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -655,7 +675,7 @@ async def _SetLogoGroup(app: Ariadne, sender: Group, member: Member, message: Me
         await obj_mysql.save()
         uname, _ = obj_mysql.get_target_uname_and_roomid()
         logger.info(f"{logger_prefix} 成功 {uname}({uid})")
-        await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){cmd.display}成功", width=800)))
+        await app.send_message(sender, MessageChain(draw_pic(f"{uname}(UID:{uid}){cmd.display}成功", width=800)))
         await app.send_message(sender, MessageChain(draw_image_pic(logo_base64, "直播报告立绘")))
 
 
@@ -741,7 +761,7 @@ async def _SetLogoFriend(app: Ariadne, sender: Friend, cmd: MessageChain = Resul
         uname, _ = obj_mysql.get_target_uname_and_roomid()
         logger.info(f"{logger_prefix} 成功 {msg_prefix}[{uname}]({uid})")
         await app.send_message(sender,
-                               MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){cmd.display}成功", width=800)))
+                               MessageChain(draw_pic(f"{msg_prefix}{uname}(UID:{uid}){cmd.display}成功", width=800)))
         await app.send_message(sender, MessageChain(draw_image_pic(logo_base64, "直播报告立绘")))
 
 
@@ -791,7 +811,7 @@ async def _ClearLogoGroup(app: Ariadne, sender: Group, member: Member, message: 
     await obj_mysql.save()
     uname, _ = obj_mysql.get_target_uname_and_roomid()
     logger.info(f"{logger_prefix} 成功{uname}({uid})")
-    await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){cmd.display}成功", width=800)))
+    await app.send_message(sender, MessageChain(draw_pic(f"{uname}(UID:{uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -841,7 +861,7 @@ async def _ClearLogoFriend(app: Ariadne, sender: Friend, cmd: MessageChain = Res
     await obj_mysql.save()
     uname, _ = obj_mysql.get_target_uname_and_roomid()
     logger.info(f"{logger_prefix} 成功 {msg_prefix}[{uname}]({uid})")
-    await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){cmd.display}成功", width=800)))
+    await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}(UID:{uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -923,7 +943,7 @@ async def _SetMessageGroup(app: Ariadne, sender: Group, member: Member, message:
         await obj_mysql.save()
         uname, _ = obj_mysql.get_target_uname_and_roomid()
         logger.info(f"{logger_prefix} 成功 {uname}({uid})")
-        await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){cmd.display}成功", width=800)))
+        await app.send_message(sender, MessageChain(draw_pic(f"{uname}(UID:{uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -1005,7 +1025,7 @@ async def _SetMessageFriend(app: Ariadne, sender: Friend, cmd: MessageChain = Re
         uname, _ = obj_mysql.get_target_uname_and_roomid()
         logger.info(f"{logger_prefix} 成功 {msg_prefix}[{uname}]({uid})")
         await app.send_message(sender,
-                               MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){cmd.display}成功", width=800)))
+                               MessageChain(draw_pic(f"{msg_prefix}{uname}(UID:{uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -1064,7 +1084,7 @@ async def _SetReportGroup(app: Ariadne, sender: Group, member: Member, message: 
         return
     await obj_mysql.save()
     logger.info(f"{logger_prefix} 成功[{uname}]({uid})")
-    await app.send_message(sender, MessageChain(draw_pic(f"{uname}({uid}){cmd.display}成功", width=800)))
+    await app.send_message(sender, MessageChain(draw_pic(f"{uname}(UID:{uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -1126,7 +1146,7 @@ async def _SetReportFriend(app: Ariadne, sender: Friend, cmd: MessageChain = Res
         return
     await obj_mysql.save()
     logger.info(f"{logger_prefix} 成功 {msg_prefix}[{uname}]({uid})")
-    await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}({uid}){cmd.display}成功", width=800)))
+    await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}(UID:{uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
