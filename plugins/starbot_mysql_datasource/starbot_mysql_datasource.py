@@ -495,7 +495,6 @@ async def _GetUpList(app: Ariadne, sender: Group, message: MessageChain, cmd: Me
     row_cont = cleaned_result.count("\n") + 1
     str_cont = len(cleaned_result)
     row_split = 120
-    logger.info(f"{logger_prefix} 成功 \n{cleaned_result}")
     if not text:
         await app.send_message(sender, MessageChain(draw_pic(result, width=1000)))
         return
