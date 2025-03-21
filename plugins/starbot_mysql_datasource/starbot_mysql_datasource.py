@@ -1,5 +1,4 @@
 import asyncio
-import re
 from typing import List, Optional, Union
 from creart import create
 from graia.ariadne import Ariadne
@@ -9,6 +8,7 @@ from graia.ariadne.message.element import At, Image, AtAll, Plain
 from graia.ariadne.message.parser.twilight import Twilight, FullMatch, UnionMatch, ElementMatch, ArgumentMatch, \
     ResultValue, ParamMatch, SpacePolicy
 from graia.ariadne.model import Friend, Group, Member, MemberPerm
+from graia.broadcast import PropagationCancelled
 from graia.saya import Channel
 from graia.saya.builtins.broadcast import ListenerSchema
 from graia.broadcast.interrupt import InterruptControl
@@ -20,7 +20,8 @@ from starbot.utils import config
 from starbot.core.model import PushType
 
 from .mysql_utils import ObjMysql, check_not_mysql_datasource, check_mysql_datasource, create_auto_follow_task, \
-    draw_image_pic, draw_pic, check_at_object, get_message_help, select_uname_and_room_id, get_logger_prefix
+    draw_image_pic, draw_pic, check_at_object, get_message_help, select_uname_and_room_id, get_logger_prefix, \
+    default_help
 from .mysql_trans import datasource_trans_to_mysql
 
 prefix = config.get("COMMAND_PREFIX")
@@ -42,27 +43,41 @@ check_describe_abnormal = ["检测异常订阅", "checkabnormal"]
 clear_describe_abnormal = ["清除异常订阅", "clearabnormal"]
 trans_to_mysql = ["数据源转储", "datasourcetrans"]
 
-help_cmd = ["订阅帮助"]
+help_cmd = ["订阅帮助", "帮助", "菜单", "功能", "命令", "指令", "help"]
 
 # 由于Twilight自带的help生成器无法满足使用，例如无法分离管理员帮助和普通的私聊帮助，只能自定义help内容
 describe_cmd = {
+    help_cmd[0]: {
+        "cmd": help_cmd,
+        "describe_group": [f"{prefix}[{' | '.join(help_cmd)}]",
+                           "可选参数：[-d | --default] 显示默认帮助",
+                           "显示此帮助，默认帮助已被该插件覆盖",
+                           f"示例: {prefix}{help_cmd[0]}"],
+        "describe_friend": [f"{prefix}[{' | '.join(help_cmd)}]",
+                            "可选参数：[-d | --default] 显示默认帮助",
+                            "显示此帮助，默认帮助已被插件覆盖",
+                            f"示例: {prefix}{help_cmd[0]}"],
+        "describe_admin": [f"{prefix}[{' | '.join(help_cmd)}]",
+                           "可选参数：[-d | --default] 显示默认帮助",
+                           "显示此帮助，默认帮助已被插件覆盖",
+                           f"示例: {prefix}{help_cmd[0]}"],
+    },
     add_describe[0]: {
         "cmd": add_describe,
         "describe_group": [f"{prefix}[{' | '.join(add_describe)}] uid",
                            "可选参数：[-t | --type] [news | live | live_on | all] 订阅类型[动态，开播和下播，开播，全部推送(默认)]",
                            "可选参数：[-a | --atall] [news | live | all | no] at全体需要管理员权限[动态，开播，动态和开播，无(默认)]",
                            "可选参数：[-r | --report] [time | danmu | all] 直播报告内容[直播时长(默认)，直播时长和弹幕云词，全部信息]",
-                           "注意：uid若已在本群订阅，则本次添加视为更新配置",
-                           "为防止被滥用，该命令需要群管理员及以上权限可用",
+                           "注意：uid若已在本群订阅，则本次添加视为更新配置，为防止被滥用，该命令需要群管理员及以上权限可用",
                            "at全体受官方限制每日次数有限，请尽量减少开启该选项，如出现受限情况，请联系bot主人确认该情况",
-                           f"示例: {prefix}{add_describe[0]} 123456",
-                           f"示例: {prefix}{add_describe[0]} 123456 -t all -a no -r time"],
+                           f"示例: {prefix}{add_describe[0]} 2",
+                           f"示例: {prefix}{add_describe[0]} 2 -t all -a no -r time"],
         "describe_friend": [f"{prefix}[{' | '.join(add_describe)}] uid",
                             "可选参数：[-t | --type] [news | live | live_on | all] 订阅类型[动态，开播和下播，开播，全部推送(默认)]",
                             "可选参数：[-r | --report] [time | danmu | all] 直播报告内容[直播时长(默认)，直播时长和弹幕云词，全部信息]",
                             "注意：uid若已被私聊订阅，则本次添加视为更新配置",
-                            f"示例: {prefix}{add_describe[0]} 123456",
-                            f"示例: {prefix}{add_describe[0]} 123456 -t all -r time"],
+                            f"示例: {prefix}{add_describe[0]} 2",
+                            f"示例: {prefix}{add_describe[0]} 2 -t all -r time"],
         "describe_admin": [f"{prefix}[{' | '.join(add_describe)}] uid",
                            "可选参数：[-g | --group] [group_num] 订阅发布群号",
                            "可选参数：[-t | --type] [news | live | live_on | all] 订阅类型[动态，开播和下播，开播，全部推送(默认)]",
@@ -70,36 +85,33 @@ describe_cmd = {
                            "可选参数：[-r | --report] [time | danmu | all] 直播报告内容[直播时长(默认)，直播时长和弹幕云词，全部信息]",
                            "注意：uid若已被私聊订阅，则本次添加视为更新配置",
                            "at全体受官方限制每日次数有限，请尽量减少开启该选项，如出现受限情况，请联系bot主人确认该情况",
-                           f"示例: {prefix}{add_describe[0]} 123456 -g 456789",
-                           f"示例: {prefix}{add_describe[0]} 123456 -g 456789 -t all -a no -r time"]
+                           f"示例: {prefix}{add_describe[0]} 2 -g 456789",
+                           f"示例: {prefix}{add_describe[0]} 2 -g 456789 -t all -a no -r time"]
     },
     delete_describe[0]: {
         "cmd": delete_describe,
         "describe_group": [f"{prefix}[{' | '.join(delete_describe)}] uid",
                            "为防止被滥用，该命令需要群管理员及以上权限可用",
-                           f"示例: {prefix}{delete_describe[0]} 123456"],
+                           f"示例: {prefix}{delete_describe[0]} 2"],
         "describe_friend": [f"{prefix}[{' | '.join(delete_describe)}] uid",
-                            f"示例: {prefix}{delete_describe[0]} 123456"],
+                            f"示例: {prefix}{delete_describe[0]} 2"],
         "describe_admin": [f"{prefix}[{' | '.join(delete_describe)}] uid",
                            "可选参数：[-g | --group] [group_num] 订阅所在群号",
-                           f"示例: {prefix}{delete_describe[0]} 123456 -g 456789"],
+                           f"示例: {prefix}{delete_describe[0]} 2 -g 456789"],
     },
     list_describe[0]: {
         "cmd": list_describe,
         "describe_group": [f"{prefix}[{' | '.join(list_describe)}]",
                            "可选参数：[-t | --text] 使用文字模式发送",
-                           f"示例: {prefix}{list_describe[0]}",
-                           f"示例: {prefix}{list_describe[0]} -t"],
+                           f"示例: {prefix}{list_describe[0]}"],
         "describe_friend": [f"{prefix}[{' | '.join(list_describe)}]",
                             "可选参数：[-t | --text] 使用文字模式发送",
                             "查询私聊订阅信息",
-                            f"示例: {prefix}{list_describe[0]}",
-                            f"示例: {prefix}{list_describe[0]} -t"],
+                            f"示例: {prefix}{list_describe[0]}"],
         "describe_admin": [f"{prefix}[{' | '.join(list_describe)}]",
                            "可选参数：[-t | --text] 使用文字模式发送",
                            "查询所有订阅信息",
-                           f"示例: {prefix}{list_describe[0]}",
-                           f"示例: {prefix}{list_describe[0]} -t"],
+                           f"示例: {prefix}{list_describe[0]}"],
     },
     reload_uid[0]: {
         "cmd": reload_uid,
@@ -107,87 +119,73 @@ describe_cmd = {
         "describe_friend": [],
         "describe_admin": [f"{prefix}[{' | '.join(reload_uid)}] uid",
                            "从数据库重新载入订阅目标",
-                           f"示例: {prefix}{reload_uid[0]} uid"],
+                           f"示例: {prefix}{reload_uid[0]} 2"],
     },
     add_logo[0]: {
         "cmd": add_logo,
         "describe_group": [f"{prefix}[{' | '.join(add_logo)}] uid",
-                           "设置直播报告立绘，发送命令后根据命令交互完成设置",
-                           "注意：uid需要在该群被订阅才能成功",
+                           "设置直播报告立绘，发送命令后根据命令交互完成设置，uid需要在该群被订阅才能成功",
                            "为防止被滥用，该命令需要群管理员及以上权限可用",
-                           f"示例: {prefix}{add_logo[0]} uid"],
+                           f"示例: {prefix}{add_logo[0]} 2"],
         "describe_friend": [f"{prefix}[{' | '.join(add_logo)}] uid",
-                            "设置直播报告立绘，发送命令后根据命令交互完成设置",
-                            "注意：uid需要被订阅才能成功",
-                            f"示例: {prefix}{add_logo[0]} uid"],
+                            "设置直播报告立绘，发送命令后根据命令交互完成设置，uid需要被订阅才能成功",
+                            f"示例: {prefix}{add_logo[0]} 2"],
         "describe_admin": [f"{prefix}[{' | '.join(add_logo)}] uid",
                            "可选参数：[-g | --group] [group_num] 订阅所在群号",
-                           "设置直播报告立绘，发送命令后根据命令交互完成设置",
-                           "注意：uid需要被订阅才能成功",
-                           f"示例: {prefix}{add_logo[0]} -g 456789 uid"]
+                           "设置直播报告立绘，发送命令后根据命令交互完成设置，uid需要被订阅才能成功",
+                           f"示例: {prefix}{add_logo[0]} -g 456789 2"]
     },
     clear_logo[0]: {
         "cmd": clear_logo,
         "describe_group": [f"{prefix}[{' | '.join(clear_logo)}] uid",
-                           "清除直播报告立绘",
-                           "注意：uid需要在该群被订阅才能成功",
+                           "清除直播报告立绘，uid需要在该群被订阅才能成功",
                            "为防止被滥用，该命令需要群管理员及以上权限可用",
-                           f"示例: {prefix}{clear_logo[0]} uid"],
+                           f"示例: {prefix}{clear_logo[0]} 2"],
         "describe_friend": [f"{prefix}[{' | '.join(clear_logo)}] uid",
-                            "清除直播报告立绘",
-                            "注意：uid需要被订阅才能成功",
-                            f"示例: {prefix}{clear_logo[0]} uid"],
+                            "清除直播报告立绘，uid需要被订阅才能成功",
+                            f"示例: {prefix}{clear_logo[0]} 2"],
         "describe_admin": [f"{prefix}[{' | '.join(clear_logo)}] uid",
                            "可选参数：[-g | --group] [group_num] 订阅所在群号",
-                           "清除直播报告立绘",
-                           "注意：uid需要被订阅才能成功",
-                           f"示例: {prefix}{clear_logo[0]} -g 456789 uid"]
+                           "清除直播报告立绘，uid需要被订阅才能成功",
+                           f"示例: {prefix}{clear_logo[0]} -g 456789 2"]
     },
     set_message[0]: {
         "cmd": set_message,
         "describe_group": [f"{prefix}[{' | '.join(set_message)}] uid",
                            "必选参数：[-t | --type] [news | live_on | live_off]  类型[动态提醒，开播提醒，下播提醒]",
-                           "设置动态提醒，开播提醒和下播提醒",
-                           "注意：uid需要在该群被订阅才能成功",
-                           "为防止被滥用，该命令需要群管理员及以上权限可用",
-                           f"示例: {prefix}{set_message[0]} uid -t live_on"],
+                           "设置动态提醒，开播提醒和下播提醒，uid需要在该群被订阅才能成功，为防止被滥用，该命令需要群管理员及以上权限可用",
+                           f"示例: {prefix}{set_message[0]} 2 -t live_on"],
         "describe_friend": [f"{prefix}[{' | '.join(set_message)}] uid",
                             "必选参数：[-t | --type] [news | live_on | live_off]  类型[动态提醒，开播提醒，下播提醒]",
-                            "设置动态提醒，开播提醒和下播提醒",
-                            "注意：uid需要被订阅才能成功",
-                            f"示例: {prefix}{set_message[0]} uid -t live_on"],
+                            "设置动态提醒，开播提醒和下播提醒，uid需要被订阅才能成功",
+                            f"示例: {prefix}{set_message[0]} 2 -t live_on"],
         "describe_admin": [f"{prefix}[{' | '.join(set_message)} uid]",
                            "可选参数：[-g | --group] [group_num] 订阅所在群号",
                            "必选参数：[-t | --type] [news | live_on | live_off]  类型[动态提醒，开播提醒，下播提醒]",
-                           "设置动态提醒，开播提醒和下播提醒",
-                           "注意：uid需要被订阅才能成功",
-                           f"示例: {prefix}{set_message[0]} -g 456789 uid -t live_on"]
+                           "设置动态提醒，开播提醒和下播提醒，uid需要被订阅才能成功",
+                           f"示例: {prefix}{set_message[0]} -g 456789 2 -t live_on"]
     },
     set_report[0]: {
         "cmd": set_report,
         "describe_group": [f"{prefix}[{' | '.join(set_report)}] uid configuration value",
-                           "设置直播报告参数",
-                           "注意：uid需要在该群被订阅才能成功",
-                           "为防止被滥用，该命令需要群管理员及以上权限可用",
-                           f"示例: {prefix}{set_report[0]} uid 弹幕数据 关闭",
-                           f"示例: {prefix}{set_report[0]} uid 盲盒榜 3"],
+                           "设置直播报告参数，具体参数项可以根据推送姬网页配置项或者json字段设置",
+                           "注意：uid需要在该群被订阅才能成功，为防止被滥用，该命令需要群管理员及以上权限可用",
+                           f"示例: {prefix}{set_report[0]} 2 弹幕数据 关闭",
+                           f"示例: {prefix}{set_report[0]} 2 盲盒榜 3"],
         "describe_friend": [f"{prefix}[{' | '.join(set_report)}] uid configuration value",
-                            "设置直播报告参数",
-                            "注意：uid需要被订阅才能成功",
-                            f"示例: {prefix}{set_report[0]} uid 弹幕数据 关闭",
-                            f"示例: {prefix}{set_report[0]} uid 盲盒榜 3"],
+                            "设置直播报告参数，具体参数项可以根据推送姬网页配置项或者json字段设置，uid需要被订阅才能成功",
+                            f"示例: {prefix}{set_report[0]} 2 弹幕数据 关闭",
+                            f"示例: {prefix}{set_report[0]} 2 盲盒榜 3"],
         "describe_admin": [f"{prefix}[{' | '.join(set_report)}] uid configuration value",
                            "可选参数：[-g | --group] [group_num] 订阅所在群号",
-                           "设置直播报告参数",
-                           "注意：uid需要被订阅才能成功",
-                           f"示例: {prefix}{set_report[0]} uid 弹幕数据 关闭",
-                           f"示例: {prefix}{set_report[0]} uid 盲盒榜 3 -g 123456"]
+                           "设置直播报告参数，具体参数项可以根据推送姬网页配置项或者json字段设置，uid需要被订阅才能成功",
+                           f"示例: {prefix}{set_report[0]} 2 弹幕数据 关闭",
+                           f"示例: {prefix}{set_report[0]} 2 盲盒榜 3 -g 123456"]
     },
     quit_group[0]: {
         "cmd": quit_group,
         "describe_group": [f"{prefix}[{' | '.join(quit_group)}]",
-                           "bot退出当前群聊并清除订阅内容",
-                           "为防止被滥用，该命令需要群主权限可用",
+                           "bot退出当前群聊并清除订阅内容，为防止被滥用，该命令需要群主权限可用",
                            f"示例: {prefix}{quit_group[0]}"],
         "describe_friend": [],
         "describe_admin": [f"{prefix}[{' | '.join(quit_group)}] group_num",
@@ -199,8 +197,7 @@ describe_cmd = {
         "describe_group": [],
         "describe_friend": [],
         "describe_admin": [f"{prefix}[{' | '.join(check_describe_abnormal)}]",
-                           "查询已经失效的订阅及其所在群聊",
-                           "功能未验证，请谨慎使用",
+                           "查询已经失效的订阅及其所在群聊(功能未验证，请谨慎使用)",
                            "注意：存在因为qqnt问题导致查询信息错误，请务必手动确认结果",
                            f"示例: {prefix}{check_describe_abnormal[0]}"]
     },
@@ -209,8 +206,7 @@ describe_cmd = {
         "describe_group": [],
         "describe_friend": [],
         "describe_admin": [f"{prefix}[{' | '.join(clear_describe_abnormal)}]",
-                           "清除所有已经失效的订阅",
-                           "功能未验证，请谨慎使用",
+                           "清除所有已经失效的订阅(功能未验证，请谨慎使用)",
                            f"示例: {prefix}{clear_describe_abnormal[0]}"]
     },
     trans_to_mysql[0]: {
@@ -1324,17 +1320,24 @@ async def _ClearDescribeAbnormal(app: Ariadne, sender: Friend, cmd: MessageChain
         inline_dispatchers=[Twilight(
             ElementMatch(At, optional=True),
             FullMatch(prefix),
-            "cmd" @ UnionMatch(*help_cmd)
+            "cmd" @ UnionMatch(*help_cmd),
+            "default" @ ArgumentMatch("-d", "--default", action="store_true", default=False),
         )],
+        # 覆盖原始帮助触发器
+        priority=10
     )
 )
 async def _MysqlHelp(app: Ariadne, sender: Union[Friend, Group], message: MessageChain,
-                     cmd: MessageChain = ResultValue()):
-    if check_not_mysql_datasource():
-        return
+                     cmd: MessageChain = ResultValue(), default: bool = ResultValue()):
     if check_at_object(app.account, message) is False:
         return
     logger_prefix = get_logger_prefix(cmd.display, sender)
+    logger.info(f"{logger_prefix} {default = }")
+    if check_not_mysql_datasource() or default:
+        await app.send_message(sender, MessageChain(await default_help(sender)))
+        # 拦截默认解析
+        raise PropagationCancelled
+
     if isinstance(sender, Group):
         context_type = "describe_group"
         help_cmd_sub_title = "群聊命令帮助"
@@ -1345,8 +1348,6 @@ async def _MysqlHelp(app: Ariadne, sender: Union[Friend, Group], message: Messag
         else:
             context_type = "describe_friend"
             help_cmd_sub_title = "私聊命令帮助"
-
-    logger.info(f"{logger_prefix}")
     pic_context = []
     for key, value in describe_cmd.items():
         # 组装绘图结构
@@ -1358,3 +1359,6 @@ async def _MysqlHelp(app: Ariadne, sender: Union[Friend, Group], message: Messag
             pic_context.append(cmd_inner)
     image = draw_pic(pic_context, cmd.display, help_cmd_sub_title, width=1500)
     await app.send_message(sender, MessageChain(image))
+    # 拦截默认解析
+    raise PropagationCancelled
+
