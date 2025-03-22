@@ -32,8 +32,8 @@ inc = create(InterruptControl)
 
 add_describe = ["添加订阅", "新增订阅", "watch"]
 delete_describe = ["删除订阅", "取消订阅", "unwatch"]
-list_describe = ["查询订阅", "list"]
-reload_uid = ["重载订阅", "reloaduid"]
+list_describe = ["查询订阅", "订阅内容", "list"]
+reload_uid = ["重载订阅", "刷新订阅", "reloaduid"]
 add_logo = ["设置立绘", "setlogo"]
 clear_logo = ["清除立绘", "clearlogo"]
 set_message = ["设置推送信息", "设置推送消息", "setmessage"]
@@ -42,6 +42,7 @@ quit_group = ["退出群聊", "退群", "quit"]
 check_describe_abnormal = ["检测异常订阅", "checkabnormal"]
 clear_describe_abnormal = ["清除异常订阅", "clearabnormal"]
 trans_to_mysql = ["数据源转储", "datasourcetrans"]
+ping = ["ping"]
 
 help_cmd = ["订阅帮助", "帮助", "菜单", "功能", "命令", "指令", "help"]
 
@@ -49,15 +50,15 @@ help_cmd = ["订阅帮助", "帮助", "菜单", "功能", "命令", "指令", "h
 describe_cmd = {
     help_cmd[0]: {
         "cmd": help_cmd,
-        "describe_group": [f"{prefix}[{' | '.join(help_cmd)}]",
+        "describe_group": [f"{prefix}[{' | '.join(help_cmd)}]" if len(help_cmd) > 1 else f"{prefix}{help_cmd[0]}",
                            "可选参数：[-d | --default] 显示默认帮助",
                            "显示此帮助，默认帮助已被该插件覆盖",
                            f"示例: {prefix}{help_cmd[0]}"],
-        "describe_friend": [f"{prefix}[{' | '.join(help_cmd)}]",
+        "describe_friend": [f"{prefix}[{' | '.join(help_cmd)}]" if len(help_cmd) > 1 else f"{prefix}{help_cmd[0]}",
                             "可选参数：[-d | --default] 显示默认帮助",
                             "显示此帮助，默认帮助已被插件覆盖",
                             f"示例: {prefix}{help_cmd[0]}"],
-        "describe_admin": [f"{prefix}[{' | '.join(help_cmd)}]",
+        "describe_admin": [f"{prefix}[{' | '.join(help_cmd)}]" if len(help_cmd) > 1 else f"{prefix}{help_cmd[0]}",
                            "可选参数：[-d | --default] 显示默认帮助",
                            "显示此帮助，默认帮助已被插件覆盖",
                            f"示例: {prefix}{help_cmd[0]}"],
@@ -213,9 +214,19 @@ describe_cmd = {
         "cmd": trans_to_mysql,
         "describe_group": [],
         "describe_friend": [],
-        "describe_admin": [f"{prefix}[{' | '.join(trans_to_mysql)}]",
+        "describe_admin": [f"{prefix}" + f"[{' | '.join(trans_to_mysql)}]" if len(trans_to_mysql) > 1 else trans_to_mysql[0],
                            "该命令可在其他数据源下使用，用处是将内存中的订阅信息插入mysql数据库中",
                            f"示例: {prefix}{trans_to_mysql[0]}"]
+    },
+    ping[0]: {
+        "cmd": ping,
+        "describe_group": [],
+        "describe_friend": [f"{prefix}[{' | '.join(ping)}]" if len(ping) > 1 else f"{prefix}{ping[0]}",
+                            "回复 pong",
+                            f"示例: {prefix}{ping[0]}"],
+        "describe_admin": [f"{prefix}[{' | '.join(ping)}]" if len(ping) > 1 else f"{prefix}{ping[0]}",
+                           "回复 pong",
+                           f"示例: {prefix}{ping[0]}"]
     }
 }
 
@@ -434,7 +445,8 @@ async def _DelListenFriend(app: Ariadne, sender: Friend, cmd: MessageChain = Res
     await obj_mysql.delete()
     uname, _ = obj_mysql.get_target_uname_and_roomid()
     logger.info(f"{logger_prefix} 成功 {msg_prefix}[{uname}]({uid})")
-    await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}(UID:{uid}){cmd.display}成功", width=800)))
+    await app.send_message(sender,
+                           MessageChain(draw_pic(f"{msg_prefix}{uname}(UID:{uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -552,7 +564,6 @@ async def _GetUpListAll(app: Ariadne, sender: Friend, cmd: MessageChain = Result
             await app.send_message(sender, MessageChain("\n".join(res)))
         return
     await app.send_message(sender, MessageChain(cleaned_result))
-
 
 
 @channel.use(
@@ -856,7 +867,8 @@ async def _ClearLogoFriend(app: Ariadne, sender: Friend, cmd: MessageChain = Res
     await obj_mysql.save()
     uname, _ = obj_mysql.get_target_uname_and_roomid()
     logger.info(f"{logger_prefix} 成功 {msg_prefix}[{uname}]({uid})")
-    await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}(UID:{uid}){cmd.display}成功", width=800)))
+    await app.send_message(sender,
+                           MessageChain(draw_pic(f"{msg_prefix}{uname}(UID:{uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -1141,7 +1153,8 @@ async def _SetReportFriend(app: Ariadne, sender: Friend, cmd: MessageChain = Res
         return
     await obj_mysql.save()
     logger.info(f"{logger_prefix} 成功 {msg_prefix}[{uname}]({uid})")
-    await app.send_message(sender, MessageChain(draw_pic(f"{msg_prefix}{uname}(UID:{uid}){cmd.display}成功", width=800)))
+    await app.send_message(sender,
+                           MessageChain(draw_pic(f"{msg_prefix}{uname}(UID:{uid}){cmd.display}成功", width=800)))
 
 
 @channel.use(
@@ -1362,3 +1375,17 @@ async def _MysqlHelp(app: Ariadne, sender: Union[Friend, Group], message: Messag
     # 拦截默认解析
     raise PropagationCancelled
 
+
+@channel.use(
+    ListenerSchema(
+        listening_events=[FriendMessage],
+        inline_dispatchers=[Twilight(
+            FullMatch(prefix),
+            "cmd" @ UnionMatch(*ping)
+        )],
+    )
+)
+async def _Ping(app: Ariadne, sender: Friend, cmd: MessageChain = ResultValue()):
+    logger_prefix = get_logger_prefix(cmd.display, sender)
+    logger.info(f"{logger_prefix}")
+    await app.send_message(sender, MessageChain("pong"))
