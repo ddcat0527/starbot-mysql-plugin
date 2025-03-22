@@ -214,7 +214,7 @@ describe_cmd = {
         "cmd": trans_to_mysql,
         "describe_group": [],
         "describe_friend": [],
-        "describe_admin": [f"{prefix}" + f"[{' | '.join(trans_to_mysql)}]" if len(trans_to_mysql) > 1 else trans_to_mysql[0],
+        "describe_admin": [f"{prefix}[{' | '.join(trans_to_mysql)}]" if len(trans_to_mysql) > 1 else f"{prefix}{trans_to_mysql[0]}",
                            "该命令可在其他数据源下使用，用处是将内存中的订阅信息插入mysql数据库中",
                            f"示例: {prefix}{trans_to_mysql[0]}"]
     },
