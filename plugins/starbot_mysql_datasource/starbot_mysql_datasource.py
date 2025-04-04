@@ -1336,17 +1336,18 @@ async def _ClearDescribeAbnormal(app: Ariadne, sender: Friend, cmd: MessageChain
             "cmd" @ UnionMatch(*help_cmd),
             "default" @ ArgumentMatch("-d", "--default", action="store_true", default=False),
         )],
-        # 覆盖原始帮助触发器
+        # 优先级高于原始帮助触发器，拦截后续低优先级解析需要raise PropagationCancelled，直接return则会继续触发低优先级解析
         priority=10
     )
 )
 async def _MysqlHelp(app: Ariadne, sender: Union[Friend, Group], message: MessageChain,
                      cmd: MessageChain = ResultValue(), default: bool = ResultValue()):
     if check_at_object(app.account, message) is False:
-        return
+        raise PropagationCancelled
     logger_prefix = get_logger_prefix(cmd.display, sender)
     logger.info(f"{logger_prefix} {default = }")
     if check_not_mysql_datasource() or default:
+        # 若需要使用原始帮助触发，该分支直接return即可
         await app.send_message(sender, MessageChain(await default_help(sender)))
         # 拦截默认解析
         raise PropagationCancelled
