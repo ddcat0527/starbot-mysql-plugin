@@ -984,7 +984,7 @@ class ObjMysql:
                     push_type.append("news")
                 if target.live_on.enabled:
                     push_type.append("live_on")
-                    if await redis.get_live_status(up.room_id) == 1:
+                    if up.room_id and await redis.get_live_status(up.room_id) == 1:
                         living_flag = True
                 if target.live_off.enabled:
                     push_type.append("live_off")
@@ -1011,7 +1011,7 @@ class ObjMysql:
                         push_type.append("news")
                     if target.live_on.enabled:
                         push_type.append("live_on")
-                        if await redis.get_live_status(up.room_id) == 1:
+                        if up.room_id and await redis.get_live_status(up.room_id) == 1:
                             living_flag = True
                     if target.live_off.enabled:
                         push_type.append("live_off")
