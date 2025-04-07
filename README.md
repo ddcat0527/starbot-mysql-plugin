@@ -94,7 +94,9 @@ starbot自定义命令包，包含如下功能
 2025年4月6日：
 1. 新增mysql数据源初始化脚本，作用是创建数据库并生成表结构，表结构中预存一条无用订阅指令以解决starbot无法在没有订阅信息的情况下启动的问题。
     请注意，该脚本会导致已存在的starbot表被覆盖，请谨慎执行
-	用法：修改代码中的mysql链接信息和qq号，使用python mysql_init.py执行脚本即可
+	用法示例：python mysql_init.py --qq 123456789 --host 127.0.0.1 --password 123456 --database starbot
+	完整用法请使用python mysql_init.py -h获取帮助
+
 
 #### 软件架构
 
