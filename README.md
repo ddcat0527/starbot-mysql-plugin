@@ -115,17 +115,21 @@ starbot自定义命令包，包含如下功能
 
 根目录__init__.py递归加载全部不为_开头的文件夹及内部.py文件，只需要放置相应插件即可被导入
 
+mysql_init.py具体使用指南请看[详细示例](/EXAMPLE.md)
+
 #### 使用说明
 
 命令包提供了启动starbot的main.py的demo文件
 
 可以新增插件，放入plugins文件夹中并重启starbot，即可被自动导入
 
-mysql默认数据库为starbot，内部表结构自行执行starbot.sql生成
+插件需要用户自行部署mysql服务，mysql默认数据库为starbot，表结构已生成sql文件starbot.sql
 
 当前存在一个问题场景：使用mysql数据源启动starbot，但是mysql数据库没有数据的情况下，starbot无法启动
 解决方案：填写mysql信息后使用json数据源启动，调用插件数据源转换功能写入mysql，然后切换为mysql数据源重启即可启动
 问题根因：starbot自身逻辑不接受空mysql表启动，即订阅信息为空的状态无法启动starbot，因此需要先进行订阅信息的写入才能正常启动
+
+mysql_init.py为数据库初始化工具，可以使用python mysql_init.py -h查询使用帮助
 
 以下命令自行增加config配置的命令前缀
 
@@ -152,7 +156,7 @@ mysql默认数据库为starbot，内部表结构自行执行starbot.sql生成
 
 starbot项目地址 https://github.com/Starlwr/StarBot
 
-命令参考ddbot https://github.com/cnxysoft/DDBOT-WSa/
+命令参考ddbot https://github.com/cnxysoft/DDBOT-WSa
 
 增加插件重载功能的魔改版starbot https://github.com/HanamiSeishin/StarBot
 

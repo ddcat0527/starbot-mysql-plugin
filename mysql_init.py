@@ -2,6 +2,83 @@ import asyncio
 import aiomysql
 import argparse
 
+starbot_sql = """
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS `bot`;
+CREATE TABLE `bot`  (
+  `id` bigint(0) NOT NULL AUTO_INCREMENT,
+  `bot` bigint(0) NULL DEFAULT NULL,
+  `uid` bigint(0) NULL DEFAULT NULL,
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 12 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+DROP TABLE IF EXISTS `dynamic_update`;
+CREATE TABLE `dynamic_update`  (
+  `id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `uid` bigint(0) NOT NULL COMMENT 'B站id',
+  `enabled` tinyint(1) NULL DEFAULT NULL,
+  `message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL,
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+DROP TABLE IF EXISTS `live_off`;
+CREATE TABLE `live_off`  (
+  `id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `uid` bigint(0) NOT NULL COMMENT 'B站id',
+  `enabled` tinyint(1) NULL DEFAULT NULL,
+  `message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL,
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+DROP TABLE IF EXISTS `live_on`;
+CREATE TABLE `live_on`  (
+  `id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `uid` bigint(0) NOT NULL COMMENT 'B站id',
+  `enabled` tinyint(1) NULL DEFAULT NULL,
+  `message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL,
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+DROP TABLE IF EXISTS `live_report`;
+CREATE TABLE `live_report`  (
+  `id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `uid` bigint(0) NOT NULL COMMENT 'b站id',
+  `enabled` tinyint(1) NULL DEFAULT NULL,
+  `logo` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL,
+  `logo_base64` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL,
+  `time` tinyint(1) NULL DEFAULT NULL,
+  `fans_change` tinyint(1) NULL DEFAULT NULL,
+  `fans_medal_change` tinyint(1) NULL DEFAULT NULL,
+  `guard_change` tinyint(1) NULL DEFAULT NULL,
+  `danmu` tinyint(1) NULL DEFAULT NULL,
+  `box` tinyint(1) NULL DEFAULT NULL,
+  `gift` tinyint(1) NULL DEFAULT NULL,
+  `sc` tinyint(1) NULL DEFAULT NULL,
+  `guard` tinyint(1) NULL DEFAULT NULL,
+  `danmu_ranking` int(0) NULL DEFAULT NULL,
+  `box_ranking` int(0) NULL DEFAULT NULL,
+  `box_profit_ranking` int(0) NULL DEFAULT NULL,
+  `gift_ranking` int(0) NULL DEFAULT NULL,
+  `sc_ranking` int(0) NULL DEFAULT NULL,
+  `guard_list` tinyint(1) NULL DEFAULT NULL,
+  `box_profit_diagram` tinyint(1) NULL DEFAULT NULL,
+  `danmu_diagram` tinyint(1) NULL DEFAULT NULL,
+  `box_diagram` tinyint(1) NULL DEFAULT NULL,
+  `gift_diagram` tinyint(1) NULL DEFAULT NULL,
+  `sc_diagram` tinyint(1) NULL DEFAULT NULL,
+  `guard_diagram` tinyint(1) NULL DEFAULT NULL,
+  `danmu_cloud` tinyint(1) NULL DEFAULT NULL,
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+DROP TABLE IF EXISTS `targets`;
+CREATE TABLE `targets`  (
+  `id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `uid` bigint(0) NOT NULL COMMENT 'B站id',
+  `num` bigint(0) NULL DEFAULT NULL COMMENT '需要推送的推送目标 QQ 号或群号',
+  `type` int(10) UNSIGNED ZEROFILL NULL DEFAULT NULL COMMENT '推送类型，0 为私聊推送，1 为群聊推送',
+  `uname` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL,
+  `room_id` bigint(0) NULL DEFAULT NULL,
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+SET FOREIGN_KEY_CHECKS = 1;
+"""
 
 async def create_database(db_config):
     """创建数据库"""
@@ -59,7 +136,6 @@ async def execute_sql(db_config, starbot_sql):
 
 
 async def main(args):
-    qq = args.qq
     db_config = {
         "host": f"{args.host}",
         "port": args.port,
@@ -68,103 +144,31 @@ async def main(args):
         "db": f"{args.database}",
         "autocommit": True
     }
-    starbot_sql = f"""
-    SET NAMES utf8mb4;
-    SET FOREIGN_KEY_CHECKS = 0;
-    DROP TABLE IF EXISTS `bot`;
-    CREATE TABLE `bot`  (
-      `id` bigint(0) NOT NULL AUTO_INCREMENT,
-      `bot` bigint(0) NULL DEFAULT NULL,
-      `uid` bigint(0) NULL DEFAULT NULL,
-      PRIMARY KEY (`id`) USING BTREE
-    ) ENGINE = InnoDB AUTO_INCREMENT = 12 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
-    INSERT INTO `bot` VALUES (1, {qq}, 180864557);
-    DROP TABLE IF EXISTS `dynamic_update`;
-    CREATE TABLE `dynamic_update`  (
-      `id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
-      `uid` bigint(0) NOT NULL COMMENT 'B站id',
-      `enabled` tinyint(1) NULL DEFAULT NULL,
-      `message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL,
-      PRIMARY KEY (`id`) USING BTREE
-    ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+    insert_sql = f"""
+    INSERT INTO `bot` VALUES (1, {args.qq}, 180864557);
     INSERT INTO `dynamic_update` VALUES ('00000000-0000-0000-0000-000000000000', 180864557, 0, '冷月丶残星丶发送了动态');
-    DROP TABLE IF EXISTS `live_off`;
-    CREATE TABLE `live_off`  (
-      `id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
-      `uid` bigint(0) NOT NULL COMMENT 'B站id',
-      `enabled` tinyint(1) NULL DEFAULT NULL,
-      `message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL,
-      PRIMARY KEY (`id`) USING BTREE
-    ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
     INSERT INTO `live_off` VALUES ('00000000-0000-0000-0000-000000000000', 180864557, 0, '冷月丶残星丶直播结束了');
-    DROP TABLE IF EXISTS `live_on`;
-    CREATE TABLE `live_on`  (
-      `id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
-      `uid` bigint(0) NOT NULL COMMENT 'B站id',
-      `enabled` tinyint(1) NULL DEFAULT NULL,
-      `message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL,
-      PRIMARY KEY (`id`) USING BTREE
-    ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
     INSERT INTO `live_on` VALUES ('00000000-0000-0000-0000-000000000000', 180864557, 0, '冷月丶残星丶正在直播');
-    DROP TABLE IF EXISTS `live_report`;
-    CREATE TABLE `live_report`  (
-      `id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
-      `uid` bigint(0) NOT NULL COMMENT 'b站id',
-      `enabled` tinyint(1) NULL DEFAULT NULL,
-      `logo` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL,
-      `logo_base64` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL,
-      `time` tinyint(1) NULL DEFAULT NULL,
-      `fans_change` tinyint(1) NULL DEFAULT NULL,
-      `fans_medal_change` tinyint(1) NULL DEFAULT NULL,
-      `guard_change` tinyint(1) NULL DEFAULT NULL,
-      `danmu` tinyint(1) NULL DEFAULT NULL,
-      `box` tinyint(1) NULL DEFAULT NULL,
-      `gift` tinyint(1) NULL DEFAULT NULL,
-      `sc` tinyint(1) NULL DEFAULT NULL,
-      `guard` tinyint(1) NULL DEFAULT NULL,
-      `danmu_ranking` int(0) NULL DEFAULT NULL,
-      `box_ranking` int(0) NULL DEFAULT NULL,
-      `box_profit_ranking` int(0) NULL DEFAULT NULL,
-      `gift_ranking` int(0) NULL DEFAULT NULL,
-      `sc_ranking` int(0) NULL DEFAULT NULL,
-      `guard_list` tinyint(1) NULL DEFAULT NULL,
-      `box_profit_diagram` tinyint(1) NULL DEFAULT NULL,
-      `danmu_diagram` tinyint(1) NULL DEFAULT NULL,
-      `box_diagram` tinyint(1) NULL DEFAULT NULL,
-      `gift_diagram` tinyint(1) NULL DEFAULT NULL,
-      `sc_diagram` tinyint(1) NULL DEFAULT NULL,
-      `guard_diagram` tinyint(1) NULL DEFAULT NULL,
-      `danmu_cloud` tinyint(1) NULL DEFAULT NULL,
-      PRIMARY KEY (`id`) USING BTREE
-    ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
     INSERT INTO `live_report` VALUES ('00000000-0000-0000-0000-000000000000', 180864557, 0, '', '', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-    DROP TABLE IF EXISTS `targets`;
-    CREATE TABLE `targets`  (
-      `id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
-      `uid` bigint(0) NOT NULL COMMENT 'B站id',
-      `num` bigint(0) NULL DEFAULT NULL COMMENT '需要推送的推送目标 QQ 号或群号',
-      `type` int(10) UNSIGNED ZEROFILL NULL DEFAULT NULL COMMENT '推送类型，0 为私聊推送，1 为群聊推送',
-      `uname` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL,
-      `room_id` bigint(0) NULL DEFAULT NULL,
-      PRIMARY KEY (`id`) USING BTREE
-    ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
     INSERT INTO `targets` VALUES ('00000000-0000-0000-0000-000000000000', 180864557, 799915082, 0000000001, '冷月丶残星丶', 7260744);
-    SET FOREIGN_KEY_CHECKS = 1;
     """
     await create_database(db_config)
     await execute_sql(db_config, starbot_sql)
+    if not args.onlystruct:
+        await execute_sql(db_config, insert_sql)
     exit()
 
 
 if __name__ == "__main__":
     # 创建参数解析器
-    parser = argparse.ArgumentParser(description="mysql_init program")
-    parser.add_argument("--qq", type=int, help="qq number", required=True, default=123456789)
-    parser.add_argument("--host", type=str, help="mysql host", default="127.0.0.1")
-    parser.add_argument("--user", type=str, help="mysql username", default="root")
-    parser.add_argument("--password", type=str, help="mysql password", default="123456")
-    parser.add_argument("--port", type=int, help="mysql port", default=3306)
-    parser.add_argument("--database", type=str, help="mysql db", default="starbot")
+    parser = argparse.ArgumentParser(description="starbot_mysql_plugin数据库初始化工具")
+    parser.add_argument("--qq", type=int, help="qq号[必填]", required=True, default=123456789)
+    parser.add_argument("--host", type=str, help="mysql host[默认127.0.0.1]", default="127.0.0.1")
+    parser.add_argument("--user", type=str, help="mysql username[默认root]", default="root")
+    parser.add_argument("--password", type=str, help="mysql password[默认123456]", default="123456")
+    parser.add_argument("--port", type=int, help="mysql port[默认3306]", default=3306)
+    parser.add_argument("--database", type=str, help="mysql db[默认starbot]", default="starbot")
+    parser.add_argument("--onlystruct", action="store_true", help="mysql仅初始化结构", default=False)
 
     # 解析参数并运行
     args = parser.parse_args()
