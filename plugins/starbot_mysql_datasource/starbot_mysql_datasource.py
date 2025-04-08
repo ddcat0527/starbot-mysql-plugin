@@ -467,6 +467,7 @@ async def _TransToMysql(app: Ariadne, sender: Friend, cmd: MessageChain = Result
         return
     logger_prefix = get_logger_prefix(cmd.display, sender)
     logger.info(f"{logger_prefix}")
+    await app.send_message(sender, MessageChain(draw_pic(f"{cmd.display} 正在执行...", width=800)))
     result, message = await datasource_trans_to_mysql()
     if not result:
         await app.send_message(sender, MessageChain(draw_pic(f"{cmd.display} 失败，原因：{message}")))
