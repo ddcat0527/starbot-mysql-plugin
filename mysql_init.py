@@ -152,6 +152,9 @@ async def main(args):
     INSERT INTO `live_report` VALUES ('00000000-0000-0000-0000-000000000000', 180864557, 0, '', '', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     INSERT INTO `targets` VALUES ('00000000-0000-0000-0000-000000000000', 180864557, 799915082, 0000000001, '冷月丶残星丶', 7260744);
     """
+    if not args.onlystruct and args.qq == 0:
+        print("需要QQ号，请添加--qq参数指定qq号，例如--qq 123456789")
+        exit()
     await create_database(db_config)
     await execute_sql(db_config, starbot_sql)
     if not args.onlystruct:
@@ -162,7 +165,7 @@ async def main(args):
 if __name__ == "__main__":
     # 创建参数解析器
     parser = argparse.ArgumentParser(description="starbot_mysql_plugin数据库初始化工具")
-    parser.add_argument("--qq", type=int, help="qq号[必填]", required=True, default=123456789)
+    parser.add_argument("--qq", type=int, help="qq号，未添加--onlystruct参数时必填", default=0)
     parser.add_argument("--host", type=str, help="mysql host[默认127.0.0.1]", default="127.0.0.1")
     parser.add_argument("--user", type=str, help="mysql username[默认root]", default="root")
     parser.add_argument("--password", type=str, help="mysql password[默认123456]", default="123456")

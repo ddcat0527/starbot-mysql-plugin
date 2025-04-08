@@ -7,13 +7,13 @@ python mysql_init.py --help
 ```
 得到如下帮助文档
 ```shell
-usage: mysql_init.py [-h] --qq QQ [--host HOST] [--user USER] [--password PASSWORD] [--port PORT] [--database DATABASE] [--onlystruct]
+usage: mysql_init.py [-h] [--qq QQ] [--host HOST] [--user USER] [--password PASSWORD] [--port PORT] [--database DATABASE] [--onlystruct]
 
 starbot_mysql_plugin数据库初始化工具
 
 options:
   -h, --help           show this help message and exit
-  --qq QQ              qq号[必填]
+  --qq QQ              qq号，未添加--onlystruct参数时必填
   --host HOST          mysql host[默认127.0.0.1]
   --user USER          mysql username[默认root]
   --password PASSWORD  mysql password[默认123456]
@@ -52,7 +52,7 @@ python mysql_init.py --qq 123456789 --password root123456
 请使用如下命令初始化mysql：
 
 ```shell
-python mysql_init.py --qq 123456789 --password root123456 --onlystruct
+python mysql_init.py --password root123456 --onlystruct
 ```
 
 该操作将以密码为root123456的root用户连接本地mysql服务器，创建名为starbot的数据库，并在该数据库内写入starbot所需的所有表结构但不内置数据
