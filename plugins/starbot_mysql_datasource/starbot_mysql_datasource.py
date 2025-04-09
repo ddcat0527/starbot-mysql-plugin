@@ -21,7 +21,7 @@ from starbot.core.model import PushType
 
 from .mysql_utils import ObjMysql, check_not_mysql_datasource, check_mysql_datasource, create_auto_follow_task, \
     draw_image_pic, draw_pic, check_at_object, get_message_help, select_uname_and_room_id, get_logger_prefix, \
-    default_help
+    default_help, check_bot_mode_public, set_bot_mode_private, set_bot_mode_public
 from .mysql_trans import datasource_trans_to_mysql
 
 prefix = config.get("COMMAND_PREFIX")
@@ -43,6 +43,7 @@ check_describe_abnormal = ["检测异常订阅", "checkabnormal"]
 clear_describe_abnormal = ["清除异常订阅", "clearabnormal"]
 trans_to_mysql = ["数据源转储", "datasourcetrans"]
 ping = ["ping"]
+bot_mode = ["模式", "mode"]
 
 help_cmd = ["订阅帮助", "帮助", "菜单", "功能", "命令", "指令", "help"]
 
@@ -227,6 +228,16 @@ describe_cmd = {
         "describe_admin": [f"{prefix}[{' | '.join(ping)}]" if len(ping) > 1 else f"{prefix}{ping[0]}",
                            "回复 pong",
                            f"示例: {prefix}{ping[0]}"]
+    },
+    bot_mode[0]: {
+        "cmd": bot_mode,
+        "describe_group": [],
+        "describe_friend": [],
+        "describe_admin": [f"{prefix}[{' | '.join(bot_mode)}] [mode]",
+                           "若mode为公开，则设置为公开模式，若mode为私人，则设置为私人模式",
+                           "若mode不填，则查询当前模式",
+                           f"示例: {prefix}{bot_mode[0]}",
+                           f"示例: {prefix}{bot_mode[0]} 私人"]
     }
 }
 
@@ -1391,3 +1402,59 @@ async def _Ping(app: Ariadne, sender: Friend, cmd: MessageChain = ResultValue())
     logger_prefix = get_logger_prefix(cmd.display, sender)
     logger.info(f"{logger_prefix}")
     await app.send_message(sender, MessageChain("pong"))
+
+
+@channel.use(
+    ListenerSchema(
+        listening_events=[FriendMessage],
+        inline_dispatchers=[Twilight(
+            FullMatch(prefix),
+            "cmd" @ UnionMatch(*bot_mode)
+        )],
+    )
+)
+async def _GetBotMode(app: Ariadne, sender: Friend, cmd: MessageChain = ResultValue()):
+    logger_prefix = get_logger_prefix(cmd.display, sender)
+    logger.info(f"{logger_prefix}")
+    if master_qq == "" or master_qq != sender.id:
+        await app.send_message(sender, MessageChain(draw_pic(f"权限不够", width=800)))
+        return
+    qq = app.account
+    if await check_bot_mode_public(qq):
+        await app.send_message(sender, MessageChain(draw_pic(f"公开模式", width=800)))
+        return
+    else:
+        await app.send_message(sender, MessageChain(draw_pic(f"私人模式", width=800)))
+        return
+
+
+@channel.use(
+    ListenerSchema(
+        listening_events=[FriendMessage],
+        inline_dispatchers=[Twilight(
+            FullMatch(prefix),
+            "cmd" @ UnionMatch(*bot_mode).space(SpacePolicy.FORCE),
+            "value" @ ParamMatch()
+        )],
+    )
+)
+async def _SetBotMode(app: Ariadne, sender: Friend,
+                      cmd: MessageChain = ResultValue(), value: MessageChain = ResultValue()):
+    value = value.display
+    logger_prefix = get_logger_prefix(cmd.display, sender)
+    logger.info(f"{logger_prefix} {value = }")
+    if master_qq == "" or master_qq != sender.id:
+        await app.send_message(sender, MessageChain(draw_pic(f"权限不够", width=800)))
+        return
+    qq = app.account
+    if value == "公开":
+        await set_bot_mode_public(qq)
+        await app.send_message(sender, MessageChain(draw_pic(f"已设置为公开模式，将自动通过好友申请和群聊邀请")))
+        return
+    elif value == "私人":
+        await set_bot_mode_private(qq)
+        await app.send_message(sender, MessageChain(draw_pic(f"已设置为私人模式，自动拒绝除主人外好友申请和群聊邀请")))
+        return
+    else:
+        await app.send_message(sender, MessageChain("输入有误，有效输入为 公开 或 私人"))
+        return

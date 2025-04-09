@@ -21,7 +21,7 @@ from starbot.painter.PicGenerator import PicGenerator, Color
 
 from loguru import logger
 
-_version = "v1.0.9"
+_version = "v1.1.0"
 
 master_qq = config.get("MASTER_QQ")
 prefix = config.get("COMMAND_PREFIX")
@@ -327,6 +327,38 @@ async def default_help(sender: Union[Friend, Group]):
     pic.draw_text_right(25, f"{__package__}.{_version}", Color.GREEN)
     pic.crop_and_paste_bottom()
     return Image(base64=pic.base64())
+
+# bot状态，0：公开，1：私人
+
+async def __exists_mode_status(qq_num: int) -> bool:
+    return await redis.hexists(f"StarBotModeStatus", qq_num)
+
+
+async def __get_mode_status(qq_num: int) -> int:
+    return await redis.hgeti(f"StarBotModeStatus", qq_num)
+
+
+async def __set_mode_status(qq_num: int, status: int):
+    await redis.hset(f"StarBotModeStatus", qq_num, status)
+
+
+async def set_bot_mode_public(qq_num: int):
+    await __set_mode_status(qq_num, 0)
+
+
+async def set_bot_mode_private(qq_num: int):
+    await __set_mode_status(qq_num, 1)
+
+
+async def check_bot_mode_public(qq_num: int) -> bool:
+    """
+    :param qq_num: bot qq号
+    :return: False为私有状态，True为公开状态 如果键值对不存在兼容旧版本为公开状态返回True
+    """
+    if await __exists_mode_status(qq_num) and await __get_mode_status(qq_num) == 1:
+        return False
+    return True
+
 
 class BotMysql:
     id: int = 0
