@@ -122,7 +122,7 @@ starbot自定义命令包，包含如下功能
 
 根目录__init__.py递归加载全部不为_开头的文件夹及内部.py文件，只需要放置相应插件即可被导入
 
-mysql_init.py具体使用指南请看[详细示例](/EXAMPLE.md)
+部署指南和部分命令帮助请查阅[详细示例](/EXAMPLE.md)
 
 #### 使用说明
 
@@ -164,8 +164,6 @@ mysql_init.py为数据库初始化工具，可以使用python mysql_init.py -h�
 starbot项目地址 https://github.com/Starlwr/StarBot
 
 命令参考ddbot https://github.com/cnxysoft/DDBOT-WSa
-
-增加插件重载功能的魔改版starbot https://github.com/HanamiSeishin/StarBot
 
 
 #### 其他说明
