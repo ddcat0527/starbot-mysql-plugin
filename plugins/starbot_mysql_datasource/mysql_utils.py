@@ -161,6 +161,7 @@ def draw_pic(messages: Union[str, List], title: Optional[str] = None, sub_title:
             pic.draw_text_multiline(50, message)
     # 底部版权信息，请务必保留此处
     pic.draw_text_right(25, "Designed By StarBot", Color.GRAY)
+    pic.draw_text_right(25, "机器人维护：1648724993", Color.PINK)
     pic.draw_text_right(25, "https://github.com/Starlwr/StarBot", Color.LINK)
     pic.draw_text_right(25, f"{__package__}.{_version}", Color.GREEN)
     pic.crop_and_paste_bottom()
@@ -194,6 +195,7 @@ def draw_image_pic(image_base64, title: Optional[str] = None, width=800, height=
     # 底部版权信息，请务必保留此处
     pic.draw_text("")
     pic.draw_text_right(50, "Designed By StarBot", Color.GRAY)
+    pic.draw_text_right(25, "机器人维护：1648724993", Color.PINK)
     pic.draw_text_right(50, "https://github.com/Starlwr/StarBot", Color.LINK)
     pic.draw_text_right(25, f"{__package__}.{_version}", Color.GREEN)
     pic.crop_and_paste_bottom()
@@ -323,6 +325,7 @@ async def default_help(sender: Union[Friend, Group]):
 
     # 底部版权信息，请务必保留此处
     pic.draw_text_right(25, "Designed By StarBot", Color.GRAY)
+    pic.draw_text_right(25, "机器人维护：1648724993", Color.PINK)
     pic.draw_text_right(25, "https://github.com/Starlwr/StarBot", Color.LINK)
     pic.draw_text_right(25, f"{__package__}.{_version}", Color.GREEN)
     pic.crop_and_paste_bottom()
@@ -394,9 +397,9 @@ class DynamicMysql:
     id: str = ""
     uid: int = 0
     enabled: bool = False
-    message: str = "{uname} {action}\n{url}\n{picture}"
-    _message_atall: str = "{atall}{uname} {action}\n{url}\n{picture}"
-    _message_default: str = "{uname} {action}\n{url}\n{picture}"
+    message: str = "{uname} {action}\n{url}{next}{picture}"
+    _message_atall: str = "{atall}\n{uname} {action}\n{url}{next}{picture}"
+    _message_default: str = "{uname} {action}\n{url}{next}{picture}"
 
     mysql_name = "dynamic_update"
 
@@ -456,7 +459,7 @@ class LiveOffMysql():
     id: str = ""
     uid: int = 0
     enabled: bool = False
-    message: str = "{uname} 直播结束了"
+    message: str = "{uname} 直播结束了，回见宝子们！"
 
     mysql_name = "live_off"
 
@@ -510,9 +513,9 @@ class LiveOnMysql:
     id: str = ""
     uid: int = 0
     enabled: bool = False
-    message: str = "{uname} 正在直播 {title}\n{url}\n{cover}"
-    _message_atall: str = "{atall}{uname} 正在直播 {title}\n{url}\n{cover}"
-    _message_default: str = "{uname} 正在直播 {title}\n{url}\n{cover}"
+    message: str = "{uname} 正在直播 {title}\n{url}{next}{cover}"
+    _message_atall: str = "{atall}\n{uname} 正在直播 {title}\n{url}{next}{cover}"
+    _message_default: str = "{uname} 正在直播 {title}\n{url}{next}{cover}"
 
     mysql_name = "live_on"
 
