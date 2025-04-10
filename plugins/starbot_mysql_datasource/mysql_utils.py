@@ -144,7 +144,7 @@ def draw_pic(messages: Union[str, List], title: Optional[str] = None, sub_title:
     if messages is None or len(messages) == 0:
         return None
     pic = PicGenerator(width, height)
-    pic.set_pos(50, 50).draw_rounded_rectangle(0, 0, width, height, 35, Color.WHITE).copy_bottom(35)
+    pic.set_pos(50, 50).draw_rounded_rectangle(0, 0, width, height, 35,(255,248,220)).copy_bottom(35)
     if title is not None and len(title) > 0:
         pic.draw_chapter(title)
         if sub_title is not None and len(title) > 0:
@@ -212,7 +212,7 @@ async def default_help(sender: Union[Friend, Group]):
     width = 1000
     height = 100000
     pic = PicGenerator(width, height)
-    pic.set_pos(50, 50).draw_rounded_rectangle(0, 0, width, height, 35, Color.WHITE).copy_bottom(35)
+    pic.set_pos(50, 50).draw_rounded_rectangle(0, 0, width, height, 35,(255,248,220)).copy_bottom(35)
 
     pic.draw_chapter("StarBot 帮助")
     pic.draw_text("")
