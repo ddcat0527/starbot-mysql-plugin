@@ -27,7 +27,7 @@ mysql数据库需要用户自行部署完成
 
 #### 全新启动帮助
 
-**以下操作预设qq号为123456789，mysql数据源密码为root123456**
+**以下操作预设bot的qq号为123456789，mysql数据源密码为root123456**
 
 如果你是starbot新用户，没有已有订阅信息，搭载本插件会遇到一个已知问题场景：空mysql订阅信息下，starbot将无法启动
 
@@ -46,7 +46,7 @@ python mysql_init.py --qq 123456789 --password root123456
 
 #### 数据源迁移帮助
 
-**以下操作预设qq号为123456789，mysql数据源密码为root123456**
+**以下操作预设bot的qq号为123456789，mysql数据源密码为root123456**
 
 如果你是其他数据源用户（通常为json数据源）想要使用本插件并切换到mysql数据源
 请使用如下命令初始化mysql：
@@ -57,10 +57,10 @@ python mysql_init.py --password root123456 --onlystruct
 
 该操作将以密码为root123456的root用户连接本地mysql服务器，创建名为starbot的数据库，并在该数据库内写入starbot所需的所有表结构但不内置数据
 
-然后将该仓库plugins目录拷贝到已有main.py文件，在main.py内添加以下配置项
+根据已有main.py文件的位置将该仓库plugins目录拷贝到相同位置，在main.py内添加以下配置项
 
 ```shell
-config.set("MASTER_QQ", 123456789) # 设置starbot超级权限用户，没有设置过则需要设置
+config.set("MASTER_QQ", 99999999) # 设置starbot超级权限用户，没有设置过则需要设置
 config.set("CUSTOM_COMMANDS_PACKAGE", "plugins") # 加载自定义插件包
 config.set("MYSQL_HOST", "127.0.0.1") # mysql链接信息的mysql地址
 config.set("MYSQL_USERNAME", "root") # mysql链接信息的mysql用户名
@@ -72,7 +72,7 @@ bot接收到该命令，会将内存中的所有订阅信息，根据配置项�
 
 该命令执行需要一段时间，根据原数据源的数量、网络通信速度以及设备运行速度有关，请耐心等待，完成后会回复“数据源转储成功”
 
-该操作完成后，停止starbot运行，然后修改main.py数据源启动：
+该操作完成后，停止starbot运行，然后修改main.py数据源启动，假设原文件为
 
 ```shell
 ...
@@ -86,6 +86,7 @@ config.set("MYSQL_PASSWORD", "root123456") # mysql链接信息的mysql密码
 ...
 datasource = JsonDataSource("推送配置.json")
 bot = StarBot(datasource)
+...
 ```
 
 修改为
@@ -103,6 +104,7 @@ config.set("MYSQL_PASSWORD", "root123456") # mysql链接信息的mysql密码
 #datasource = JsonDataSource("推送配置.json")
 datasource = MySQLDataSource()
 bot = StarBot(datasource)
+...
 ```
 
 正常启动starbot即可
