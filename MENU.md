@@ -7,7 +7,7 @@
 帮助： 订阅帮助
 
 主人命令示例：
-![d70d62e12d6c1dbbeadc7c0c385ad58f](https://github.com/user-attachments/assets/b370ccfc-b5da-464d-a51c-cdfcd0a3d398)
+![f12108238de5b452789566bb75228a5e](https://github.com/user-attachments/assets/bae3b9ea-691a-44b3-868f-ba81bf926107)
 
 
 群聊命令示例：
