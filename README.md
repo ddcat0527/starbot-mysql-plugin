@@ -45,6 +45,8 @@ starbot自定义命令包，包含如下功能
 
 mysql_init.py为数据库初始化工具，可以使用python mysql_init.py -h查询使用帮助
 
+mysql_trans_qq.py为数据库迁移工具，可以使用python mysql_trans_qq.py -h查询使用帮助
+
 具体参阅[详细示例](./EXAMPLE.md)
 
 命令示例[部分命令展示](./MENU.md)

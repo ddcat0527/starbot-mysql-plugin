@@ -155,3 +155,37 @@ logo绘图函数：mysql_utils.py -> draw_image_pic
 | sc互动曲线图     | sc_diagram | bool  | 开启 关闭  |
 | 大航海互动曲线图     | guard_diagram | bool  | 开启 关闭  |
 | 弹幕词云     | danmu_cloud | bool  | 开启 关闭  |
+
+
+#### 数据库迁移工具使用帮助
+
+执行命令
+```shell
+python mysql_trans_qq.py --help
+```
+得到如下帮助文档
+```shell
+usage: mysql_trans_qq.py [-h] --oldqq OLDQQ --newqq NEWQQ [--host HOST] [--user USER] [--password PASSWORD] [--port PORT] [--database DATABASE]
+
+starbot_mysql_plugin数据库迁移工具
+
+options:
+  -h, --help           show this help message and exit
+  --oldqq OLDQQ        bot旧qq号
+  --newqq NEWQQ        bot新qq号
+  --host HOST          mysql host[默认127.0.0.1]
+  --user USER          mysql username[默认root]
+  --password PASSWORD  mysql password[默认123456]
+  --port PORT          mysql port[默认3306]
+  --database DATABASE  mysql db[默认starbot]
+
+```
+
+该工具的作用是用户需要更换新bot时，执行该脚本进行数据迁移，具体为把数据库bot表中的bot列全部更新为新qq
+
+用法示例：
+
+假设mysql用户名为root密码为root123456，为本地部署的mysql，旧bot(qq号为123456789)已不可用，需要更换为新bot(qq号为987654321)，则可执行如下命令，则订阅数据由123456789迁移到987654321，维持可用
+```shell
+python mysql_trans_qq.py --password root123456 --oldqq 123456789 --newqq 987654321
+```
