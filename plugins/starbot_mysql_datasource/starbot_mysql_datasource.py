@@ -161,7 +161,7 @@ describe_cmd = {
                             "必选参数：[-t | --type] [news | live_on | live_off]  类型[动态提醒，开播提醒，下播提醒]",
                             "设置动态提醒，开播提醒和下播提醒，uid需要被订阅才能成功",
                             f"示例: {prefix}{set_message[0]} 2 -t live_on"],
-        "describe_admin": [f"{prefix}[{' | '.join(set_message)} uid]",
+        "describe_admin": [f"{prefix}[{' | '.join(set_message)}] uid",
                            "可选参数：[-g | --group] [group_num] 订阅所在群号",
                            "必选参数：[-t | --type] [news | live_on | live_off]  类型[动态提醒，开播提醒，下播提醒]",
                            "设置动态提醒，开播提醒和下播提醒，uid需要被订阅才能成功",
