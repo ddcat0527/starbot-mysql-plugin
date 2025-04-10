@@ -1,6 +1,9 @@
 import asyncio
 import aiomysql
 import argparse
+import sys
+
+from loguru import logger
 
 starbot_sql = """
 SET NAMES utf8mb4;
@@ -95,25 +98,24 @@ async def create_database(db_config):
                 f"CREATE DATABASE IF NOT EXISTS {db_config['db']} "
                 f"DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
             )
-            print(f"Database {db_config['db']} created")
+            logger.debug(f"Database {db_config['db']} created")
         except aiomysql.Error as e:
-            print(f"Error creating database: {e}")
+            logger.error(f"Error creating database: {e}")
         finally:
             conn.close()
 
 
 async def execute_sql(db_config, starbot_sql):
     """执行SQL文件"""
+    # 连接到目标数据库
+    conn = await aiomysql.connect(
+        host=db_config["host"],
+        port=db_config["port"],
+        user=db_config["user"],
+        password=db_config["password"],
+        db=db_config["db"]
+    )
     try:
-        # 连接到目标数据库
-        conn = await aiomysql.connect(
-            host=db_config["host"],
-            port=db_config["port"],
-            user=db_config["user"],
-            password=db_config["password"],
-            db=db_config["db"]
-        )
-
         # 分割SQL语句（简单分号分割，实际需要更复杂的解析）
         statements = [stmt.strip() for stmt in starbot_sql.split(';') if stmt.strip()]
 
@@ -123,13 +125,13 @@ async def execute_sql(db_config, starbot_sql):
                     continue  # 跳过DELIMITER指令
                 try:
                     await cursor.execute(stmt)
-                    print(f"Executed: {stmt[:50]}...")  # 显示前50个字符
+                    logger.debug(f"Executed: {stmt[:50]}...")  # 显示前50个字符
                 except aiomysql.Error as e:
-                    print(f"Error executing statement: {e}\nStatement: {stmt}")
+                    logger.error(f"Error executing statement: {e}\nStatement: {stmt}")
                     raise
             await conn.commit()
     except Exception as e:
-        print(f"Error executing SQL file: {e}")
+        logger.error(f"Error executing SQL file: {e}")
     finally:
         conn.close()
 
@@ -153,16 +155,33 @@ async def main(args):
     INSERT INTO `targets` VALUES ('00000000-0000-0000-0000-000000000000', 180864557, 799915082, 0000000001, '冷月丶残星丶', 7260744);
     """
     if not args.onlystruct and args.qq == 0:
-        print("需要QQ号，请添加--qq参数指定qq号，例如--qq 123456789")
+        logger.warning("需要QQ号，请添加--qq参数指定qq号，例如--qq 123456789")
         exit()
+    logger.info(f"若不存在数据库 {args.database} 则创建...")
     await create_database(db_config)
+    logger.info(f"开始表结构初始化...")
     await execute_sql(db_config, starbot_sql)
     if not args.onlystruct:
+        logger.info(f"写入占位数据...")
         await execute_sql(db_config, insert_sql)
+    else:
+        logger.info(f"添加了--onlystruct标记，跳过写入占位数据")
+    if args.onlystruct:
+        logger.success("^_^数据库初始化已完成，当前mysql订阅源为空")
+    else:
+        logger.success(f"^_^数据库初始化已完成，已基于botqq号{args.qq}写入一条占位数据")
+
     exit()
 
 
 if __name__ == "__main__":
+    logger_format = (
+        "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
+        "<level>{level: <8}</level> | "
+        "<level>{message}</level>"
+    )
+    logger.remove()
+    logger.add(sys.stderr, format=logger_format, level="DEBUG")
     # 创建参数解析器
     parser = argparse.ArgumentParser(description="starbot_mysql_plugin数据库初始化工具")
     parser.add_argument("--qq", type=int, help="qq号，未添加--onlystruct参数时必填", default=0)
