@@ -1,5 +1,5 @@
-# starbot-mysql-plugins
-
+# starbot-mysql-plugin
+![1f36b87beb59d8b49881204b497ee87b](https://github.com/user-attachments/assets/580c0838-45b7-4cba-9217-1a61ef77ab47)
 #### 介绍
 
 starbot自定义命令包，包含如下功能
@@ -10,7 +10,16 @@ starbot自定义命令包，包含如下功能
 4. mysql数据源下的机器人的动态订阅功能和当前内存数据源到mysql的转储能力（需要配置MASTER_QQ）
 5. 覆盖starbot原始帮助
 
-当前版本 v1.1.0
+当前版本 v1.1.1
+
+starbot-mysql-plugin配套mysql工具脚本：
+
+1. mysql_init.py为数据库初始化工具，可以使用python mysql_init.py -h查询使用帮助
+2. mysql_trans_qq.py为数据库迁移工具，可以使用python mysql_trans_qq.py -h查询使用帮助
+3. mysql_backup.py为数据库备份和恢复工具，可以使用python mysql_backup.py -h查询使用帮助
+
+另外为各位小伙伴提供了默认命令阻断工具，可阻止bot响应除master_qq用户外的用户（需要配置MASTER_QQ）
+每个命令单独配置，可以按需取用，详细见[命令阻断工具说明](./CMD_BLOCK.md)
 
 更新日志查阅[更新日志](./UPDATE_LOG.md)
 
@@ -42,10 +51,6 @@ starbot自定义命令包，包含如下功能
 插件需要用户自行部署mysql服务，mysql默认数据库为starbot，表结构已生成sql文件starbot.sql
 
 注意：starbot自身逻辑不接受空mysql表启动，即订阅信息为空的状态无法启动starbot，因此需要先进行订阅信息的写入才能正常启动
-
-mysql_init.py为数据库初始化工具，可以使用python mysql_init.py -h查询使用帮助
-
-mysql_trans_qq.py为数据库迁移工具，可以使用python mysql_trans_qq.py -h查询使用帮助
 
 具体参阅[详细示例](./EXAMPLE.md)
 
